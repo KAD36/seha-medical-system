@@ -57,8 +57,22 @@ user_data = {}
 message_parser = MessageParser()
 date_converter = DateConverter()
 
+
+async def ensure_authorized(update: Update) -> bool:
+    """Allow only the Telegram account configured as ADMIN_USER_ID."""
+    user = update.effective_user
+    if user and ADMIN_USER_ID and str(user.id) == str(ADMIN_USER_ID):
+        return True
+
+    if update.effective_message:
+        await update.effective_message.reply_text("⛔ هذا البوت مخصص للمستخدم المعتمد فقط.")
+    return False
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج أمر /start"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     
     # رسالة الترحيب المحدثة
@@ -149,8 +163,12 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
             # إرسال البيانات إلى API (إذا كان متاحاً)
             try:
                 api_response = send_leave_data_to_api(final_data)
-                if api_response:
+                if api_response.get('success'):
                     await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
+                else:
+                    await update.message.reply_text(
+                        f"⚠️ تم إنشاء التقرير، لكن تعذر حفظه في الموقع: {api_response['message']}"
+                    )
             except Exception as api_error:
                 logger.warning(f"خطأ في إرسال البيانات إلى API: {api_error}")
             
@@ -206,6 +224,9 @@ async def handle_new_report(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج الرسائل النصية - محدث لدعم الرسائل المنسقة"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     message_text = update.message.text
     
@@ -593,8 +614,12 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
             # إرسال البيانات إلى API
             try:
                 api_response = send_leave_data_to_api(data)
-                if api_response:
+                if api_response.get('success'):
                     await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
+                else:
+                    await update.message.reply_text(
+                        f"⚠️ تم إنشاء التقرير، لكن تعذر حفظه في الموقع: {api_response['message']}"
+                    )
             except Exception as api_error:
                 logger.warning(f"خطأ في إرسال البيانات إلى API: {api_error}")
             
@@ -617,6 +642,9 @@ async def generate_png_report(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج الصور المرسلة"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     
     if user_id in user_data and user_data[user_id]['state'] == STATES['LOGO_UPLOAD']:
@@ -672,10 +700,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     else:
         await update.message.reply_text("🖼️ يرجى أولاً إرسال البيانات المنسقة أو استخدام الطريقة التقليدية لإنشاء التقرير.")
 
-def main() -> None:
-    """الدالة الرئيسية لتشغيل البوت"""
-    # إنشاء التطبيق
-    application = Application.builder().token(BOT_TOKEN).build()
+def build_application(*, polling: bool = True) -> Application:
+    """Build the bot application for polling or for the combined webhook server."""
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN is required. Set it as an environment variable.")
+    if not ADMIN_USER_ID:
+        raise RuntimeError("ADMIN_USER_ID is required. Set it as an environment variable.")
+
+    builder = Application.builder().token(BOT_TOKEN)
+    if not polling:
+        builder = builder.updater(None)
+    application = builder.build()
     
     # إضافة معالجات الأوامر
     application.add_handler(CommandHandler("start", start))
@@ -683,6 +718,13 @@ def main() -> None:
     # إضافة معالجات الرسائل
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    return application
+
+
+def main() -> None:
+    """الدالة الرئيسية لتشغيل البوت باستخدام polling."""
+    application = build_application(polling=True)
     
     # تشغيل البوت
     print("🤖 بدء تشغيل بوت صحة للإجازات المرضية - النسخة المحدثة...")
@@ -692,4 +734,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

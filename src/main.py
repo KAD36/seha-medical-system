@@ -10,7 +10,7 @@ from src.routes.user import user_bp
 from src.routes.medical_leaves import medical_leaves_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'local-development-only')
 
 # تفعيل CORS
 CORS(app)
@@ -24,6 +24,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
+
+@app.route('/healthz')
+def health_check():
+    return {'status': 'ok'}, 200
 
 @app.route('/admin')
 def admin_panel():

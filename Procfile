@@ -1,2 +1,1 @@
-web: gunicorn src.main:app
-worker: python3 bot/bot_updated.py
+web: python run_combined.py

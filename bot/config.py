@@ -1,35 +1,45 @@
-# Configuration file for Seha Sick Leave Bot
+"""Runtime configuration for the Telegram bot.
 
-BOT_TOKEN = '7517890109:AAGqykdBdcB7xh2Z_kvkHKWIvwixiNvmAlw'
-ADMIN_USER_ID = 5561466213
+Secrets are intentionally loaded from environment variables. Never commit a
+real Telegram token or administrator ID to this repository.
+"""
 
-# API Settings
-API_BASE_URL = 'https://80-iayzosfpiazlzday7ujjn-d2b18cd3.manusvm.computer' # يمكن تغييرها حسب عنوان الخادم
-API_ENDPOINT = '/api/add_leave.php'
-API_FULL_URL = API_BASE_URL + API_ENDPOINT
+import os
+from pathlib import Path
 
-# Paths
-FONTS_DIR = './bot/fonts'
-IMAGES_DIR = './bot'
-OUTPUT_DIR = './bot/output'
+from dotenv import load_dotenv
 
-# Font paths
-NOTO_SANS_ARABIC_BOLD = f'{FONTS_DIR}/noto_sans_arabic/NotoSansArabic-Bold.ttf'
-NOTO_SANS_ARABIC_REGULAR = f'{FONTS_DIR}/noto_sans_arabic/NotoSansArabic-Regular.ttf'
-TIMES_NR_MT_BOLD = f'{FONTS_DIR}/times_nr_mt/TimesNRMTPro-Bold.otf'
-TIMES_NR_MT_REGULAR = f'{FONTS_DIR}/times_nr_mt/TimesNRMTPro-Regular.otf'
 
-# Image paths
-SEHA_LOGO = f'{IMAGES_DIR}/شعارصحةseha.jpg'
-GEOMETRIC_SHAPE = f'{IMAGES_DIR}/الشكلالهندسي.jpg'
-KINGDOM_TEXT = f'{IMAGES_DIR}/كلمةالمملكةالعربيةالسعوديةKingdomofSaudiArabia.jpg'
-HOSPITAL_LOGO = f'{IMAGES_DIR}/شعارالمستشفى.png'
-HEALTH_INFO_CENTER_LOGO = f'{IMAGES_DIR}/شعارالمركزالوطنيللمعلوماتالصحية.jpg'
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-# QR Code settings
-QR_URL = 'https://www.seha.sa/#/inquiries/slenquiry'
 
-# PDF settings
-PDF_WIDTH = 297  # mm
-PDF_HEIGHT = 419  # mm
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+ADMIN_USER_ID = os.environ.get("ADMIN_USER_ID", "").strip()
 
+API_BASE_URL = os.environ.get(
+    "API_BASE_URL",
+    os.environ.get("RENDER_EXTERNAL_URL", "http://127.0.0.1:5000"),
+).rstrip("/")
+API_ENDPOINT = "/api/medical-leaves"
+API_FULL_URL = f"{API_BASE_URL}{API_ENDPOINT}"
+
+BASE_DIR = Path(__file__).resolve().parent
+FONTS_DIR = BASE_DIR / "fonts"
+IMAGES_DIR = BASE_DIR
+OUTPUT_DIR = BASE_DIR / "output"
+
+NOTO_SANS_ARABIC_BOLD = str(FONTS_DIR / "noto_sans_arabic" / "NotoSansArabic-Bold.ttf")
+NOTO_SANS_ARABIC_REGULAR = str(FONTS_DIR / "noto_sans_arabic" / "NotoSansArabic-Regular.ttf")
+TIMES_NR_MT_BOLD = str(FONTS_DIR / "times_nr_mt" / "TimesNRMTPro-Bold.otf")
+TIMES_NR_MT_REGULAR = str(FONTS_DIR / "times_nr_mt" / "TimesNRMTPro-Regular.otf")
+
+SEHA_LOGO = str(IMAGES_DIR / "شعارصحةseha.jpg")
+GEOMETRIC_SHAPE = str(IMAGES_DIR / "الشكلالهندسي.jpg")
+KINGDOM_TEXT = str(IMAGES_DIR / "كلمةالمملكةالعربيةالسعوديةKingdomofSaudiArabia.jpg")
+HOSPITAL_LOGO = str(IMAGES_DIR / "شعارالمستشفى.png")
+HEALTH_INFO_CENTER_LOGO = str(IMAGES_DIR / "شعارالمركزالوطنيللمعلوماتالصحية.jpg")
+
+QR_URL = os.environ.get("QR_URL", "https://www.seha.sa/#/inquiries/slenquiry")
+
+PDF_WIDTH = 297
+PDF_HEIGHT = 419

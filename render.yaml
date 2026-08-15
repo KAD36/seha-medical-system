@@ -1,9 +1,15 @@
 services:
   - type: web
-    name: seha-medical-system
-    env: python
+    name: seha-medical-system-kad36
+    runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn src.main:app
+    startCommand: python run_combined.py
+    healthCheckPath: /healthz
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_USER_ID
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
