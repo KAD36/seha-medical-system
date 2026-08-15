@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="./favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>صحة - منصة الخدمات الصحية</title>
+    <meta
+      name="description"
+      content="هي منصة إلكترونية تخدم القطاع الصحي في المملكة من خلال تقديم خدمات إلكترونية معتمدة من قبل وزارة الصحة، أنشئت منصة صحة تماشيًا مع رؤية المملكة 2030 وتفعيلاً للتوجه الحكومي، وتهدف إلى أتمتة وتوحيد الإجراءات والخدمات وتسهيلها في جميع الجهات الصحية وتشمل العديد من الخدمات الصحية التي تحت مظلة منظومة الصحة وقطاعاتها المتنوعة للأفراد من المنشأت الطبية. "
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style type="text/css">
+      body {
+        font-family: "Cairo", sans-serif;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+      main,
+      header,
+      .container,
+      .app {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <link
+      type="text/css"
+      rel="stylesheet"
+      charset="UTF-8"
+      href="https://www.gstatic.com/_/translate_http/_/ss/k=translate_http.tr.pgV-E-68K-A.L.W.O/am=gMA/d=0/rs=AN8SPfpszKJssl6IA0boGClFdsaAZGtXEQ/m=el_main_css"
+    />
+    <meta charset="utf-8" data-react-helmet="true" />
+    <meta
+      name="description"
+      content="هي منصة إلكترونية تخدم القطاع الصحي في المملكة من خلال تقديم خدمات إلكترونية معتمدة من قبل وزارة الصحة، أنشئت منصة صحة تماشيًا مع رؤية المملكة 2030 وتفعيلاً للتوجه الحكومي، وتهدف إلى أتمتة وتوحيد الإجراءات والخدمات وتسهيلها في جميع الجهات الصحية وتشمل العديد من الخدمات الصحية التي تحت مظلة منظومة الصحة وقطاعاتها المتنوعة للأفراد من المنشأت الطبية."
+      data-react-helmet="true"
+    />
+  </head>
+  <body>
+    <div class="app-header">
+      <div>
+        <nav class="header navbar navbar-expand-lg navbar-light">
+          <div class="nav-container">
+            <a class="d-lg-none sm-logo navbar-brand" href="#/">
+              <img
+                src="./assets/seha_logo-m9JsokyV.svg"
+                alt="logo"
+                class="logo"
+              />
+            </a>
+            <div class="d-lg-none d-xl-none justify-content-end menu">
+              <button
+                aria-controls="responsive-navbar-nav"
+                aria-label="Toggle navigation"
+                type="button"
+                class="d-inline-flex menu-img navbar-toggler collapsed"
+                data-bs-toggle="collapse"
+                data-bs-target="#responsive-navbar-nav"
+              >
+                <span class="navbar-toggler-icon"></span>
+              </button>
+            </div>
+
+            <div
+              class="white justify-content-between navbar-collapse collapse"
+              id="responsive-navbar-nav"
+            >
+              <div class="justify-content-between navbar-nav">
+                <a class="d-none d-lg-block navbar-brand" href="#/">
+                  <img
+                    src="./assets/seha_logo-m9JsokyV.svg"
+                    alt="logo"
+                    class="logo"
+                  />
+                </a>
+                <a
+                  data-rr-ui-event-key="1"
+                  class="link nav-link active"
+                  href="https://seha.sa/#/"
+                  >الرئيسية</a
+                >
+                <a
+                  data-rr-ui-event-key="2"
+                  class="link nav-link"
+                  href="https://seha.sa/#/services"
+                  >الخدمات</a
+                >
+                <a
+                  data-rr-ui-event-key="3"
+                  class="link nav-link"
+                  href="https://seha.sa/#/inquiries"
+                  >الاستعلامات</a
+                >
+                <a data-rr-ui-event-key="4" class="link nav-link" href="https://seha.sa/#/faq"
+                  >الأسئلة الشائعة</a
+                >
+                <a
+                  data-rr-ui-event-key="5"
+                  class="link nav-link"
+                  href="https://seha.sa/#/ContactUs"
+                  >تواصل معنا</a
+                >
+              </div>
+              <div class="justify-content-between navbar-nav">
+                <a
+                  data-rr-ui-event-key="4"
+                  class="nav-link"
+                  href="https://seha.sa/#/iamredirection/1"
+                >
+                  <p>إنشاء حساب</p>
+                </a>
+                <a
+                  role="button"
+                  data-rr-ui-event-key="5"
+                  class="login nav-link"
+                  tabindex="0"
+                  href="https://seha.sa/#/account/login"
+                  style="cursor: pointer; opacity: 1"
+                >
+                  <img
+                    src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='12.914'%20height='15.067'%20viewBox='0%200%2012.914%2015.067'%3e%3cdefs%3e%3cstyle%3e.a{fill:%23fff;}%3c/style%3e%3c/defs%3e%3cpath%20class='a'%20d='M10.1,6.592a3.637,3.637,0,0,1,.752.319,3.306,3.306,0,0,1,.748.614,3.956,3.956,0,0,1,.668.971,6.094,6.094,0,0,1,.462,1.446,9.776,9.776,0,0,1,.185,1.988,3.17,3.17,0,0,1-.841,2.216,2.647,2.647,0,0,1-2.026.921H2.867A2.647,2.647,0,0,1,.84,14.146,3.168,3.168,0,0,1,0,11.931,9.772,9.772,0,0,1,.185,9.942,6.1,6.1,0,0,1,.647,8.5a3.954,3.954,0,0,1,.668-.971,3.306,3.306,0,0,1,.748-.614,3.637,3.637,0,0,1,.752-.319,4.265,4.265,0,0,1-.324-3.956,4.258,4.258,0,0,1,2.3-2.3,4.259,4.259,0,0,1,3.338,0,4.262,4.262,0,0,1,2.3,2.3A4.267,4.267,0,0,1,10.1,6.592ZM6.457,1.076a3.11,3.11,0,0,0-2.283.946A3.112,3.112,0,0,0,3.228,4.3a3.107,3.107,0,0,0,.946,2.283,3.114,3.114,0,0,0,2.283.946A3.108,3.108,0,0,0,8.74,6.587,3.111,3.111,0,0,0,9.686,4.3,3.111,3.111,0,0,0,8.74,2.022,3.11,3.11,0,0,0,6.457,1.076Zm3.59,12.914a1.623,1.623,0,0,0,1.265-.6,2.141,2.141,0,0,0,.526-1.459,6.43,6.43,0,0,0-.660-3.17,2.205,2.205,0,0,0-1.9-1.219A4.158,4.158,0,0,1,6.457,8.609,4.158,4.158,0,0,1,3.632,7.542a2.206,2.206,0,0,0-1.9,1.219,6.431,6.431,0,0,0-.660,3.17A2.139,2.139,0,0,0,1.6,13.389a1.626,1.626,0,0,0,1.265.6h7.18Z'/%3e%3c/svg%3e"
+                    alt="logo"
+                    class=""
+                  />
+                  <p>تسجيل الدخول</p>
+                </a>
+              </div>
+            </div>
+          </div>
+          <button id="top-button" style="display: none">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14.4"
+              height="18.503"
+              viewBox="0 0 14.4 18.503"
+            >
+              <path
+                id="arrow-up-c"
+                d="M8.862,11.37,14.381,6.1a1.7,1.7,0,0,1,2.355,0l5.54,5.272a1.555,1.555,0,0,1,0,2.271,1.738,1.738,0,0,1-2.376,0l-2.649-2.528V22.519a1.684,1.684,0,0,1-3.364,0V11.113l-2.649,2.534a1.738,1.738,0,0,1-2.376,0,1.561,1.561,0,0,1,0-2.276Z"
+                transform="translate(-8.369 -5.625)"
+                fill="#306DB5"
+              ></path>
+            </svg>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <div class="inner-page inquiries-container">
+      <h1 class="heading">الإجازات المرضية</h1>
+      <p class="sub-heading">
+        خدمة الاستعلام عن الإجازات المرضية تتيح لك الاستعلام عن حالة طلبك
+        للإجازة ويمكنك طباعتها عن طريق تطبيق صحتي
+      </p>
+      
+      <!-- نموذج الاستعلام -->
+      <div id="search-form" class="row justify-content-center mt-1">
+        <div class="col-md-5 p-4">
+          <div id="alert-container"></div>
+          <form id="inquiryForm">
+            <div class="form-group">
+              <input
+                type="text"
+                id="service_code"
+                maxlength="20"
+                placeholder="رمز الخدمة"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label></label>
+              <input
+                type="text"
+                id="identity_number"
+                maxlength="20"
+                placeholder="رقم الهوية / الإقامة"
+                class="form-control"
+                required
+              />
+            </div>
+            <button class="btn btn-primary mt-3" type="submit">استعلام</button>
+          </form>
+        </div>
+        <div class="col-md-12 text-center">
+          <a class="btn btn-primary mb-3" href="https://seha.sa/#/inquiries"
+            >رجوع للاستعلامات</a
+          >
+        </div>
+      </div>
+      
+      <!-- نتائج الاستعلام -->
+      <div id="search-results" class="row justify-content-center mt-4" style="display: none;">
+        <div class="col-md-8">
+          <div class="card" style="border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0;">
+              <h3 class="mb-0 text-center">نتائج الاستعلام</h3>
+            </div>
+            <div class="card-body p-4">
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <strong>الاسم:</strong>
+                  <div id="result-name" class="mt-1"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <strong>تاريخ إصدار تقرير الإجازة:</strong>
+                  <div id="result-issue-date" class="mt-1"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <strong>تبداء من:</strong>
+                  <div id="result-start-date" class="mt-1"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <strong>وحتى:</strong>
+                  <div id="result-end-date" class="mt-1"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <strong>المدة بالأيام:</strong>
+                  <div id="result-duration" class="mt-1"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <strong>اسم الطبيب المعالج:</strong>
+                  <div id="result-doctor" class="mt-1"></div>
+                </div>
+                <div class="col-md-12 mb-3">
+                  <strong>المسمى الوظيفي:</strong>
+                  <div id="result-job-title" class="mt-1"></div>
+                </div>
+              </div>
+              <div class="text-center mt-4">
+                <button id="back-to-search" class="btn btn-primary">رجوع للاستعلامات</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-container container-fluid">
+      <div class="footer">
+        <div class="about section">
+          <img src="./assets/logo-white-CKxLEirV.svg" alt="Logo" />
+          <p class="about">
+            منصة صحة تخدم جميع المنشأت الطبية من خلال تقديم الخدمات الصحية
+            إلكترونياً لجميع المنشأت الطبية وتسعى إلى توحيد وأتمتة الاجراءات
+            والخدمات بما في دوره رفع جودة الاداء وخفض التكاليف.
+          </p>
+        </div>
+        <div class="links section" style="align-items: center">
+          <h3 class="heading">القائمة الرئيسية</h3>
+          <ul class="links-wrapepr">
+            <li class="inquiry-li">
+              <a class="nav-link" href="https://seha.sa/#/services">الخدمات</a>
+            </li>
+            <li class="inquiry-li">
+              <a class="nav-link" href="https://seha.sa/#/inquiries">الاستعلامات</a>
+            </li>
+            <li class="inquiry-li">
+              <a class="nav-link" href="https://seha.sa/#/faq">الأسئلة الشائعة</a>
+            </li>
+            <li class="inquiry-li" style="border-bottom: none">
+              <a class="nav-link" href="https://seha.sa/#/ContactUs">تواصل معنا</a>
+            </li>
+          </ul>
+        </div>
+        <div class="section d-none">
+          <h3 class="heading d-none">النشرة البريدية</h3>
+          <p class="about d-none">الاشتراك في الرسائل الإخبارية</p>
+          <form class="d-none">
+            <div class="input-wrapper">
+              <input
+                placeholder="البريد الالكتروني"
+                type="email"
+                class="form-control"
+              /><button class="button-small">إشترك</button>
+            </div>
+          </form>
+        </div>
+        <div class="contact section">
+          <h3 class="heading">تواصل معنا</h3>
+          <div class="contact-wrapper">
+            <div class="values">
+              <div class="details">
+                <img
+                  alt="phone icon"
+                  src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='13.667'%20height='13.662'%20viewBox='0%200%2013.667%2013.662'%3e%3cpath%20id='phone'%20d='M15.455,17.037h-.089C5.04,16.443,3.574,7.731,3.369,5.072a1.576,1.576,0,0,1,1.45-1.7h2.9a1.051,1.051,0,0,1,.978.662L9.491,6a1.051,1.051,0,0,1-.231,1.135L8.14,8.267a4.923,4.923,0,0,0,3.983,3.993l1.14-1.13a1.051,1.051,0,0,1,1.14-.215l1.981.794a1.051,1.051,0,0,1,.647.977V15.46a1.576,1.576,0,0,1-1.576,1.576ZM4.946,4.426a.525.525,0,0,0-.525.525v.042c.242,3.111,1.792,10.467,11,10.992a.525.525,0,0,0,.557-.494V12.686L14,11.892l-1.508,1.5-.252-.032c-4.571-.573-5.191-5.144-5.191-5.191l-.032-.252L8.508,6.406,7.72,4.426Z'%20transform='translate(-3.364%20-3.375)'%20fill='%237eb7db'/%3e%3c/svg%3e"
+                /><a href="tel:920002005">920002005</a>
+              </div>
+              <div class="details">
+                <img
+                  alt="email line"
+                  src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='13.667'%20height='10.25'%20viewBox='0%200%2013.667%2010.25'%3e%3cpath%20id='email-line'%20d='M14.812,6H2.854A.854.854,0,0,0,2,6.854V15.4a.854.854,0,0,0,.854.854H14.812a.854.854,0,0,0,.854-.854V6.854A.854.854,0,0,0,14.812,6Zm-.658,9.4H3.563L6.553,12.3l-.615-.594L2.854,14.9V7.5l5.309,5.283a.854.854,0,0,0,1.2,0l5.445-5.415v7.474L11.669,11.7l-.6.6ZM3.414,6.854H14.121L8.765,12.18Z'%20transform='translate(-2%20-6)'%20fill='%237eb7db'/%3e%3c/svg%3e"
+                /><a href="mailto:support@seha.sa">support@seha.sa</a>
+              </div>
+              <div class="details">
+                <img
+                  alt="whatsapp"
+                  src="data:image/svg+xml,%3csvg%20width='14'%20height='15'%20viewBox='0%200%2014%2015'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20fill-rule='evenodd'%20clip-rule='evenodd'%20d='M11.9602%202.27071C10.6442%200.953543%208.89393%200.227791%207.02923%200.227051C3.18704%200.227051%200.0599782%203.35292%200.0584405%207.19512C0.057928%208.42329%200.378928%209.62217%200.988904%2010.6789L-7.62939e-06%2014.29L3.69531%2013.321C4.71343%2013.8761%205.85977%2014.1687%207.02644%2014.1692H7.0293C10.8711%2014.1692%2013.9984%2011.0429%2014%207.20068C14.0007%205.33869%2013.2763%203.58787%2011.9602%202.27071ZM7.0293%2012.9922H7.02693C5.98731%2012.9918%204.96761%2012.7126%204.07808%2012.1849L3.86649%2012.0594L1.67367%2012.6344L2.25899%2010.4971L2.12121%2010.278C1.54125%209.35579%201.23492%208.28992%201.23538%207.19556C1.23665%204.00207%203.83576%201.40399%207.0316%201.40399C8.5791%201.40458%2010.0338%202.00783%2011.1277%203.10261C12.2216%204.19739%2012.8237%205.65261%2012.8231%207.20023C12.8217%2010.3939%2010.2227%2012.9922%207.0293%2012.9922ZM10.2073%208.65437C10.0331%208.56722%209.17681%208.14597%209.01715%208.08787C8.8575%208.02976%208.7414%208.00072%208.62527%208.17504C8.50917%208.34934%208.17537%208.74154%208.07374%208.85773C7.97216%208.97395%207.87056%208.98849%207.69638%208.90132C7.52221%208.81417%206.961%208.63032%206.29571%208.03711C5.77795%207.57544%205.42836%207.0052%205.32677%206.8309C5.22517%206.65658%205.31597%206.56233%205.40316%206.47554C5.4815%206.39752%205.57732%206.27218%205.66442%206.17049C5.75149%206.06881%205.78052%205.99618%205.83856%205.87999C5.89663%205.76378%205.86761%205.66209%205.82406%205.57494C5.78052%205.48779%205.4322%204.63075%205.28704%204.28213C5.14567%203.9426%205.00207%203.98854%204.89515%203.98322C4.79367%203.97817%204.67744%203.97709%204.56134%203.97709C4.44522%203.97709%204.25653%204.02068%204.09687%204.19498C3.93722%204.3693%203.48729%204.79055%203.48729%205.64756C3.48729%206.50458%204.11139%207.33254%204.19848%207.44875C4.28556%207.56497%205.42666%209.32371%207.17387%2010.0779C7.58943%2010.2573%207.91386%2010.3644%208.16681%2010.4447C8.58407%2010.5772%208.96377%2010.5585%209.26389%2010.5137C9.59852%2010.4637%2010.2944%2010.0925%2010.4395%209.68573C10.5847%209.279%2010.5847%208.93038%2010.5411%208.85775C10.4976%208.78513%2010.3815%208.74154%2010.2073%208.65437Z'%20fill='white'/%3e%3c/svg%3e"
+                  style="width: 16px; height: 16px; opacity: 0.5"
+                /><a
+                  href="https://wa.me/920002005"
+                  target="_blank"
+                  rel="noreferrer"
+                  >920002005</a
+                >
+              </div>
+              <div class="timings mt-3">
+                <span style="font-size: 12px; color: rgb(240, 243, 248)"
+                  >أوقات العمل: الأحد حتى الخميس 8 ص - 11م</span
+                >
+              </div>
+              <div class="social">
+                <button>
+                  <a
+                    href="https://www.youtube.com/channel/UCb9ZrS2YcriYqIPIHNp9wcQ"
+                    ><img
+                      alt="youtube icon"
+                      src="data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%3e%3cg%20id='Group_4247'%20data-name='Group%204247'%20transform='translate(-326%20-6335)'%3e%3cpath%20id='youtube'%20d='M6.848,12.169V9.444l2.62,1.368-2.62,1.358Zm5.754-3.2a2.094,2.094,0,0,0-.386-.963,1.388,1.388,0,0,0-.972-.411c-1.357-.1-3.393-.1-3.393-.1h0s-2.036,0-3.393.1a1.388,1.388,0,0,0-.972.411,2.1,2.1,0,0,0-.386.963,14.673,14.673,0,0,0-.1,1.57v.736a14.681,14.681,0,0,0,.1,1.57,2.094,2.094,0,0,0,.386.963,1.641,1.641,0,0,0,1.07.414c.776.074,3.3.1,3.3.1s2.038,0,3.4-.1a1.387,1.387,0,0,0,.972-.411,2.1,2.1,0,0,0,.386-.963,14.681,14.681,0,0,0,.1-1.57v-.736a14.665,14.665,0,0,0-.1-1.57Z'%20transform='translate(327%206333.5)'%20fill='%23f0f3f8'%20fill-rule='evenodd'/%3e%3cg%20id='Path_8137'%20data-name='Path%208137'%20transform='translate(326%206335)'%20fill='none'%20opacity='0'%3e%3cpath%20d='M9,0A9,9,0,1,1,0,9,9,9,0,0,1,9,0Z'%20stroke='none'/%3e%3cpath%20d='M%209.000004768371582%200.4999980926513672%20C%204.313084602355957%200.4999980926513672%200.4999942779541016%204.31309700012207%200.4999942779541016%209.00003719329834%20C%200.4999942779541016%2013.68697738647461%204.313084602355957%2017.50007629394531%209.000004768371582%2017.50007629394531%20C%2013.68692493438721%2017.50007629394531%2017.50000381469727%2013.68697738647461%2017.50000381469727%209.00003719329834%20C%2017.50000381469727%204.31309700012207%2013.68692493438721%200.4999980926513672%209.000004768371582%200.4999980926513672%20M%209.000004768371582%20-1.9073486328125e-06%20C%2013.97056484222412%20-1.9073486328125e-06%2018.00000381469727%204.029457092285156%2018.00000381469727%209.00003719329834%20C%2018.00000381469727%2013.97061729431152%2013.97056484222412%2018.00007629394531%209.000004768371582%2018.00007629394531%20C%204.029444694519043%2018.00007629394531%20-5.7220458984375e-06%2013.97061729431152%20-5.7220458984375e-06%209.00003719329834%20C%20-5.7220458984375e-06%204.029457092285156%204.029444694519043%20-1.9073486328125e-06%209.000004768371582%20-1.9073486328125e-06%20Z'%20stroke='none'%20fill='%23f0f3f8'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e"
+                  /></a></button
+                ><button>
+                  <a href="https://twitter.com/seha_services"
+                    ><svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 1200 1227"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fill="#ffffff"
+                        d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z"
+                      ></path></svg
+                  ></a>
+                </button>
+              </div>
+            </div>
+            <div class="contact">
+              <img alt="lean logo" src="./assets/lean-logo-De0NEeoI.svg" />
+              <div class="spacer"></div>
+              <img alt="moh logo" src="./assets/MOH-logo-DYiHZCSg.svg" />
+            </div>
+          </div>
+          <div class="footer-note-wrapper">
+            <p>منصة صحة معتمدة من قبل وزارة الصحة © 2025</p>
+            <ul>
+              <li><a>سياسة الخصوصية وشروط الإستخدام</a></li>
+              <li>
+                <a
+                  class=""
+                  href="https://www.seha.sa/Content/LandingPages/UserManual.pdf"
+                  >دليل الاستخدام</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script>
+        // آلية الاستعلام
+        document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const serviceCode = document.getElementById('service_code').value.trim();
+            const identityNumber = document.getElementById('identity_number').value.trim();
+            
+            if (!serviceCode || !identityNumber) {
+                showAlert('يرجى إدخال رمز الخدمة ورقم الهوية', 'danger');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/medical-leaves/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        service_code: serviceCode,
+                        identity_number: identityNumber
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.found) {
+                    displayResults(result.data);
+                } else {
+                    showAlert('لم يتم العثور على بيانات مطابقة لرمز الخدمة ورقم الهوية المدخلين', 'warning');
+                }
+            } catch (error) {
+                showAlert('حدث خطأ في الاتصال بالخادم', 'danger');
+            }
+        });
+        
+        // عرض النتائج
+        function displayResults(data) {
+            document.getElementById('result-name').textContent = data.patient_name_ar;
+            document.getElementById('result-issue-date').textContent = formatDate(data.report_issue_date);
+            document.getElementById('result-start-date').textContent = formatDate(data.admission_date_gregorian);
+            document.getElementById('result-end-date').textContent = formatDate(data.discharge_date_gregorian);
+            document.getElementById('result-duration').textContent = data.duration_days;
+            document.getElementById('result-doctor').textContent = data.doctor_name_ar;
+            document.getElementById('result-job-title').textContent = data.job_title_ar;
+            
+            document.getElementById('search-form').style.display = 'none';
+            document.getElementById('search-results').style.display = 'block';
+        }
+        
+        // العودة للاستعلام
+        document.getElementById('back-to-search').addEventListener('click', function() {
+            document.getElementById('search-results').style.display = 'none';
+            document.getElementById('search-form').style.display = 'block';
+            document.getElementById('inquiryForm').reset();
+            document.getElementById('alert-container').innerHTML = '';
+        });
+        
+        // عرض التنبيهات
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+        
+        // تنسيق التاريخ
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-SA', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+    </script>
+  </body>
+</html>
