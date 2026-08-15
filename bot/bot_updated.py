@@ -10,7 +10,7 @@ import logging
 import os
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from config_updated import BOT_TOKEN, OUTPUT_DIR
+from config_updated import BOT_TOKEN, ADMIN_USER_ID, OUTPUT_DIR
 from pdf_generator_updated import generate_sick_leave_pdf
 from api_client import send_leave_data_to_api
 from message_parser import MessageParser
@@ -68,8 +68,22 @@ def normalize_gregorian_date(value: str):
     return f"{day:02d}-{month:02d}-{year}"
 
 
+async def ensure_authorized(update: Update) -> bool:
+    """Allow only the Telegram account configured as ADMIN_USER_ID."""
+    user = update.effective_user
+    if user and ADMIN_USER_ID and str(user.id) == str(ADMIN_USER_ID):
+        return True
+
+    if update.effective_message:
+        await update.effective_message.reply_text("⛔ هذا البوت مخصص للمستخدم المعتمد فقط.")
+    return False
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج أمر /start"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     
     # رسالة الترحيب المحدثة
@@ -220,6 +234,9 @@ async def handle_new_report(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج الرسائل النصية - محدث لدعم الرسائل المنسقة"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     message_text = update.message.text
     
@@ -658,6 +675,9 @@ async def generate_png_report(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج الصور المرسلة"""
+    if not await ensure_authorized(update):
+        return
+
     user_id = update.effective_user.id
     
     if user_id in user_data and user_data[user_id]['state'] == STATES['LOGO_UPLOAD']:
@@ -717,6 +737,8 @@ def build_application(*, polling: bool = True) -> Application:
     """Build the bot application for polling or for the combined webhook server."""
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN is required. Set it as an environment variable.")
+    if not ADMIN_USER_ID:
+        raise RuntimeError("ADMIN_USER_ID is required. Set it as an environment variable.")
 
     builder = Application.builder().token(BOT_TOKEN)
     if not polling:
