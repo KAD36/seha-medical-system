@@ -6,6 +6,7 @@ Date Converter for Seha Sick Leave Bot
 """
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from hijri_converter import Gregorian, Hijri
 import re
 from typing import Tuple, Optional
@@ -52,8 +53,12 @@ class DateConverter:
                 else:  # DD-MM-YYYY format
                     day, month, year = map(int, match.groups())
                 
-                # التحقق من صحة التاريخ
-                if 1 <= day <= 31 and 1 <= month <= 12 and 1900 <= year <= 2100:
+                # التحقق من صحة التاريخ فعلياً، بما في ذلك عدد أيام الشهر.
+                if 1900 <= year <= 2100:
+                    try:
+                        datetime(year, month, day)
+                    except ValueError:
+                        continue
                     return (day, month, year)
         
         return None
@@ -104,7 +109,7 @@ class DateConverter:
     
     def get_current_gregorian_date(self) -> str:
         """الحصول على التاريخ الميلادي الحالي"""
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("Asia/Riyadh"))
         return f"{now.day:02d}-{now.month:02d}-{now.year}"
     
     def process_dates(self, admission_date_gregorian: str, discharge_date_gregorian: str) -> dict:
@@ -149,4 +154,3 @@ if __name__ == "__main__":
     processed = converter.process_dates("20-09-2025", "21-09-2025")
     for key, value in processed.items():
         print(f"{key}: {value}")
-

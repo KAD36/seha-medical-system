@@ -23,6 +23,14 @@ API_BASE_URL = os.environ.get(
 API_ENDPOINT = "/api/medical-leaves"
 API_FULL_URL = f"{API_BASE_URL}{API_ENDPOINT}"
 
+# The address printed in reports, embedded in their clickable link, and stored
+# in their QR code must be the same public site.  Keep this separate from the
+# API base so a local API can still be used while generating a test report.
+PUBLIC_SITE_URL = os.environ.get(
+    "PUBLIC_SITE_URL",
+    os.environ.get("RENDER_EXTERNAL_URL", API_BASE_URL),
+).rstrip("/")
+
 BASE_DIR = Path(__file__).resolve().parent
 FONTS_DIR = BASE_DIR / "fonts"
 IMAGES_DIR = BASE_DIR
@@ -39,7 +47,8 @@ KINGDOM_TEXT = str(IMAGES_DIR / "كلمةالمملكةالعربيةالسعو�
 HOSPITAL_LOGO = str(IMAGES_DIR / "شعارالمستشفى.png")
 HEALTH_INFO_CENTER_LOGO = str(IMAGES_DIR / "شعارالمركزالوطنيللمعلوماتالصحية.jpg")
 
-QR_URL = os.environ.get("QR_URL", "https://www.seha.sa/#/inquiries/slenquiry")
+# Backward-compatible name used by the PDF generators.
+QR_URL = PUBLIC_SITE_URL
 
 PDF_WIDTH = 297
 PDF_HEIGHT = 419

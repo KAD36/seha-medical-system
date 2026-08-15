@@ -34,8 +34,14 @@ def create_medical_leave():
         
         if success:
             return jsonify({'message': 'تم حفظ البيانات بنجاح'}), 201
-        else:
-            return jsonify({'error': 'رمز الخدمة موجود مسبقاً أو حدث خطأ في الحفظ'}), 400
+
+        # The generated service code is deterministic. If the same report is
+        # generated again, update its record instead of leaving a PDF whose
+        # lookup fails because the code already exists.
+        if medical_leave_model.update_medical_leave(data['service_code'], data):
+            return jsonify({'message': 'تم تحديث البيانات بنجاح'}), 200
+
+        return jsonify({'error': 'تعذر حفظ بيانات التقرير'}), 400
             
     except Exception as e:
         return jsonify({'error': f'خطأ في الخادم: {str(e)}'}), 500

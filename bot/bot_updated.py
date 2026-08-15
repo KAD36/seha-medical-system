@@ -56,6 +56,16 @@ user_data = {}
 # إنشاء كائنات المعالجة
 message_parser = MessageParser()
 date_converter = DateConverter()
+EDIT_DATES_BUTTON = "✏️ تعديل التواريخ"
+
+
+def normalize_gregorian_date(value: str):
+    """Return DD-MM-YYYY for a valid date, otherwise None."""
+    parsed = date_converter.parse_gregorian_date(value)
+    if not parsed:
+        return None
+    day, month, year = parsed
+    return f"{day:02d}-{month:02d}-{year}"
 
 
 async def ensure_authorized(update: Update) -> bool:
@@ -138,6 +148,15 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
         
         # دمج البيانات
         final_data = {**parsed_data, **date_data}
+
+        # Save first so every PDF delivered by the bot is already searchable
+        # on the public website.
+        api_response = send_leave_data_to_api(final_data)
+        if not api_response.get('success'):
+            await update.message.reply_text(
+                f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
+            )
+            return
         
         # إرسال رسالة تأكيد التحويل
         await update.message.reply_text(
@@ -160,17 +179,7 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
                     caption="✅ تم إنشاء تقرير الإجازة المرضية بنجاح!"
                 )
             
-            # إرسال البيانات إلى API (إذا كان متاحاً)
-            try:
-                api_response = send_leave_data_to_api(final_data)
-                if api_response.get('success'):
-                    await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
-                else:
-                    await update.message.reply_text(
-                        f"⚠️ تم إنشاء التقرير، لكن تعذر حفظه في الموقع: {api_response['message']}"
-                    )
-            except Exception as api_error:
-                logger.warning(f"خطأ في إرسال البيانات إلى API: {api_error}")
+            await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
             
             # رسالة النجاح النهائية مع زر الشعار
             success_message = """🎉 تم إنشاء التقرير بنجاح!
@@ -311,12 +320,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif current_state == STATES['POSITION_EN']:
         if message_text != "الخطوة التالية":
             user_data[user_id]['data']['position_en'] = message_text
-        await ask_admission_date_gregorian(update, context)
+        # Use today's Riyadh date automatically. It remains editable from the
+        # review screen before generating the report.
+        today = date_converter.get_current_gregorian_date()
+        user_data[user_id]['data'].update(date_converter.process_dates(today, today))
+        await ask_hospital_name_ar(update, context)
     
     elif current_state == STATES['ADMISSION_DATE_GREGORIAN']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['admission_date_gregorian'] = message_text
-        await ask_admission_date_hijri(update, context)
+        normalized = normalize_gregorian_date(message_text)
+        if not normalized:
+            await update.message.reply_text("❌ التاريخ غير صحيح. اكتبه بصيغة يوم-شهر-سنة، مثال: 16-08-2026")
+            await ask_admission_date_gregorian(update, context)
+            return
+        user_data[user_id]['data']['admission_date_gregorian'] = normalized
+        await ask_discharge_date_gregorian(update, context)
     
     elif current_state == STATES['ADMISSION_DATE_HIJRI']:
         if message_text != "الخطوة التالية":
@@ -324,9 +341,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await ask_discharge_date_gregorian(update, context)
     
     elif current_state == STATES['DISCHARGE_DATE_GREGORIAN']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['discharge_date_gregorian'] = message_text
-        await ask_discharge_date_hijri(update, context)
+        normalized = normalize_gregorian_date(message_text)
+        if not normalized:
+            await update.message.reply_text("❌ التاريخ غير صحيح. اكتبه بصيغة يوم-شهر-سنة، مثال: 16-08-2026")
+            await ask_discharge_date_gregorian(update, context)
+            return
+        data = user_data[user_id]['data']
+        data.update(date_converter.process_dates(data['admission_date_gregorian'], normalized))
+        await ask_issue_date_gregorian(update, context)
     
     elif current_state == STATES['DISCHARGE_DATE_HIJRI']:
         if message_text != "الخطوة التالية":
@@ -334,9 +356,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await ask_issue_date_gregorian(update, context)
     
     elif current_state == STATES['ISSUE_DATE_GREGORIAN']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['issue_date_gregorian'] = message_text
-        await ask_hospital_name_ar(update, context)
+        normalized = normalize_gregorian_date(message_text)
+        if not normalized:
+            await update.message.reply_text("❌ التاريخ غير صحيح. اكتبه بصيغة يوم-شهر-سنة، مثال: 16-08-2026")
+            await ask_issue_date_gregorian(update, context)
+            return
+        user_data[user_id]['data']['issue_date_gregorian'] = normalized
+        user_data[user_id].pop('editing_dates', None)
+        await confirm_data(update, context)
     
     elif current_state == STATES['HOSPITAL_NAME_AR']:
         if message_text != "الخطوة التالية":
@@ -358,7 +385,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await confirm_data(update, context)
     
     elif current_state == STATES['CONFIRM_DATA']:
-        if message_text == "📄 حفظ وإرسال التقرير بصيغة PDF":
+        if message_text == EDIT_DATES_BUTTON:
+            user_data[user_id]['editing_dates'] = True
+            await ask_admission_date_gregorian(update, context)
+        elif message_text == "📄 حفظ وإرسال التقرير بصيغة PDF":
             await generate_pdf_report(update, context)
         elif message_text == "🖼️ حفظ وإرسال التقرير بصيغة PNG":
             await generate_png_report(update, context)
@@ -468,8 +498,9 @@ async def ask_admission_date_gregorian(update: Update, context: ContextTypes.DEF
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['ADMISSION_DATE_GREGORIAN']
     
-    message = "📅 يرجى إدخال تاريخ الدخول (ميلادي)"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    current = user_data[user_id]['data'].get('admission_date_gregorian', date_converter.get_current_gregorian_date())
+    message = "📅 تاريخ الدخول مضبوط تلقائيًا. اضغط التاريخ لاعتماده أو اكتب تاريخًا آخر بصيغة يوم-شهر-سنة."
+    keyboard = [[KeyboardButton(current)]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -488,8 +519,9 @@ async def ask_discharge_date_gregorian(update: Update, context: ContextTypes.DEF
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['DISCHARGE_DATE_GREGORIAN']
     
-    message = "📅 يرجى إدخال تاريخ الخروج (ميلادي)"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    current = user_data[user_id]['data'].get('discharge_date_gregorian', user_data[user_id]['data'].get('admission_date_gregorian', date_converter.get_current_gregorian_date()))
+    message = "📅 تاريخ الخروج مضبوط تلقائيًا. اضغط التاريخ لاعتماده أو اكتب تاريخًا آخر."
+    keyboard = [[KeyboardButton(current)]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -508,8 +540,9 @@ async def ask_issue_date_gregorian(update: Update, context: ContextTypes.DEFAULT
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['ISSUE_DATE_GREGORIAN']
     
-    message = "📅 يرجى إدخال تاريخ إصدار التقرير (ميلادي)"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    current = user_data[user_id]['data'].get('issue_date_gregorian', user_data[user_id]['data'].get('discharge_date_gregorian', date_converter.get_current_gregorian_date()))
+    message = "📅 تاريخ الإصدار مضبوط تلقائيًا. اضغط التاريخ لاعتماده أو اكتب تاريخًا آخر."
+    keyboard = [[KeyboardButton(current)]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -583,6 +616,7 @@ async def confirm_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 يرجى اختيار صيغة التقرير:"""
     
     keyboard = [
+        [KeyboardButton(EDIT_DATES_BUTTON)],
         [KeyboardButton("📄 حفظ وإرسال التقرير بصيغة PDF")],
         [KeyboardButton("🖼️ حفظ وإرسال التقرير بصيغة PNG")]
     ]
@@ -598,6 +632,14 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("🔄 جاري إنشاء التقرير...")
         
         data = user_data[user_id]['data']
+
+        # Do not send a report until its inquiry record is available.
+        api_response = send_leave_data_to_api(data)
+        if not api_response.get('success'):
+            await update.message.reply_text(
+                f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
+            )
+            return
         
         # توليد التقرير
         pdf_path = generate_sick_leave_pdf(data, str(user_id))
@@ -611,17 +653,7 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
                     caption="✅ تم إنشاء تقرير الإجازة المرضية بنجاح!"
                 )
             
-            # إرسال البيانات إلى API
-            try:
-                api_response = send_leave_data_to_api(data)
-                if api_response.get('success'):
-                    await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
-                else:
-                    await update.message.reply_text(
-                        f"⚠️ تم إنشاء التقرير، لكن تعذر حفظه في الموقع: {api_response['message']}"
-                    )
-            except Exception as api_error:
-                logger.warning(f"خطأ في إرسال البيانات إلى API: {api_error}")
+            await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
             
         else:
             await update.message.reply_text("❌ حدث خطأ في توليد التقرير. يرجى المحاولة مرة أخرى.")

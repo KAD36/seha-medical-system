@@ -334,7 +334,9 @@ class SickLeavePDF(FPDF):
             # إنشاء الباركود
             qr_data = f"{data.get('id_number', '')} - {self.generate_leave_id(data.get('id_number', ''), data.get('admission_date_gregorian', ''), data.get('discharge_date_gregorian', ''))} - {data.get('issue_date_gregorian', '')}"
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(QR_URL)
+            # Keep the printed URL, clickable URL, and QR destination identical.
+            report_url = PUBLIC_SITE_URL
+            qr.add_data(report_url)
             qr.make(fit=True)
             
             qr_img = qr.make_image(fill_color="black", back_color="white")
@@ -377,14 +379,14 @@ class SickLeavePDF(FPDF):
             self.set_text_color(0, 0, 255)  # لون أزرق للرابط
             self.set_xy(45, 326)
             # إنشاء رابط تشعبي حقيقي
-            self.cell(72, 6, QR_URL, align='C', link=QR_URL)
+            self.cell(72, 6, report_url, align='C', link=report_url)
             
             # إضافة خط أزرق نحيف تحت الرابط مباشرة
             self.set_draw_color(0, 0, 255)  # لون أزرق للخط
             self.set_line_width(0.1)  # خط نحيف جداً
             # حساب موقع الخط تحت الرابط مباشرة
-            link_start_x = 45 + (72 - self.get_string_width(QR_URL)) / 2
-            link_end_x = link_start_x + self.get_string_width(QR_URL)
+            link_start_x = 45 + (72 - self.get_string_width(report_url)) / 2
+            link_end_x = link_start_x + self.get_string_width(report_url)
             self.line(link_start_x, 330, link_end_x, 330)  # رفع الخط للأعلى
             
             
@@ -497,4 +499,3 @@ if __name__ == "__main__":
     
     pdf_path = generate_sick_leave_pdf(test_data, 'test')
     print(f"تم إنشاء ملف PDF: {pdf_path}")
-

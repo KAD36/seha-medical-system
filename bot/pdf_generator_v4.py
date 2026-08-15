@@ -334,7 +334,9 @@ class SickLeavePDF(FPDF):
             # إنشاء الباركود
             qr_data = f"{data.get('id_number', '')} - {self.generate_leave_id(data.get('id_number', ''), data.get('admission_date_gregorian', ''), data.get('discharge_date_gregorian', ''))} - {data.get('issue_date_gregorian', '')}"
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(QR_URL)
+            # Keep the printed URL, clickable URL, and QR destination identical.
+            report_url = PUBLIC_SITE_URL
+            qr.add_data(report_url)
             qr.make(fit=True)
             
             qr_img = qr.make_image(fill_color="black", back_color="white")
@@ -395,7 +397,7 @@ class SickLeavePDF(FPDF):
                 self.set_font('Arial', 'B', size=11)
             self.set_text_color(0, 0, 255)  # #0000ff
             self.set_xy(48, 330)
-            self.cell(60, 7, QR_URL, align='C', link=QR_URL)
+            self.cell(60, 7, report_url, align='C', link=report_url)
             
             # رسم خط تحت الرابط بسماكة أقل
             self.set_draw_color(0, 0, 255)
@@ -480,4 +482,3 @@ if __name__ == "__main__":
     
     pdf_path = generate_sick_leave_pdf(test_data, 'test')
     print(f"تم إنشاء ملف PDF: {pdf_path}")
-
