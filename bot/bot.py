@@ -9,7 +9,7 @@ import logging
 import os
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from config import BOT_TOKEN, ADMIN_USER_ID, OUTPUT_DIR
+from config import BOT_TOKEN, OUTPUT_DIR
 from pdf_generator_v4 import generate_sick_leave_pdf
 from api_client import send_leave_data_to_api
 
@@ -550,4 +550,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

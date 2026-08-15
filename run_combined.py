@@ -20,7 +20,7 @@ BOT_DIR = ROOT_DIR / "bot"
 sys.path.insert(0, str(BOT_DIR))
 
 from bot_updated import build_application  # noqa: E402
-from config import ADMIN_USER_ID, BOT_TOKEN  # noqa: E402
+from config import BOT_TOKEN  # noqa: E402
 from src.main import app as flask_app  # noqa: E402
 
 
@@ -47,8 +47,8 @@ async def telegram_webhook() -> Response:
 async def main() -> None:
     global telegram_application
 
-    if not BOT_TOKEN or not ADMIN_USER_ID:
-        raise RuntimeError("BOT_TOKEN and ADMIN_USER_ID must be configured")
+    if not BOT_TOKEN:
+        raise RuntimeError("BOT_TOKEN must be configured")
 
     external_url = os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("WEBHOOK_BASE_URL")
     if not external_url:
