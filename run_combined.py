@@ -4,6 +4,7 @@
 import asyncio
 import hashlib
 import hmac
+import logging
 import os
 import sys
 from http import HTTPStatus
@@ -20,12 +21,13 @@ BOT_DIR = ROOT_DIR / "bot"
 sys.path.insert(0, str(BOT_DIR))
 
 from bot_updated import build_application  # noqa: E402
-from config import ADMIN_USER_ID, BOT_TOKEN  # noqa: E402
+from config import ADMIN_USER_IDS, BOT_TOKEN  # noqa: E402
 from src.main import app as flask_app  # noqa: E402
 
 
 telegram_application = None
 webhook_secret = hashlib.sha256(BOT_TOKEN.encode("utf-8")).hexdigest()
+logger = logging.getLogger(__name__)
 
 
 @flask_app.post("/telegram-webhook")
@@ -47,8 +49,8 @@ async def telegram_webhook() -> Response:
 async def main() -> None:
     global telegram_application
 
-    if not BOT_TOKEN or not ADMIN_USER_ID:
-        raise RuntimeError("BOT_TOKEN and ADMIN_USER_ID must be configured")
+    if not BOT_TOKEN or not ADMIN_USER_IDS:
+        raise RuntimeError("BOT_TOKEN and ADMIN_USER_IDS (or ADMIN_USER_ID) must be configured")
 
     external_url = os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("WEBHOOK_BASE_URL")
     if not external_url:
@@ -78,18 +80,24 @@ async def main() -> None:
             BotCommand("mystatus", "حالة اشتراكك"),
         ]
         await telegram_application.bot.set_my_commands(public_commands)
-        await telegram_application.bot.set_my_commands(
-            public_commands
-            + [
-                BotCommand("subscriptions", "تعليمات إدارة الاشتراكات"),
-                BotCommand("grant", "تفعيل أو تمديد اشتراك"),
-                BotCommand("renew", "تمديد اشتراك شهرًا"),
-                BotCommand("revoke", "إلغاء اشتراك"),
-                BotCommand("substatus", "حالة اشتراك مستخدم"),
-                BotCommand("subscribers", "الاشتراكات الفعالة"),
-            ],
-            scope=BotCommandScopeChat(chat_id=int(ADMIN_USER_ID)),
-        )
+        admin_commands = public_commands + [
+            BotCommand("subscriptions", "تعليمات إدارة الاشتراكات"),
+            BotCommand("grant", "تفعيل أو تمديد اشتراك"),
+            BotCommand("renew", "تمديد اشتراك شهرًا"),
+            BotCommand("revoke", "إلغاء اشتراك"),
+            BotCommand("substatus", "حالة اشتراك مستخدم"),
+            BotCommand("subscribers", "الاشتراكات الفعالة"),
+        ]
+        for admin_id in ADMIN_USER_IDS:
+            try:
+                await telegram_application.bot.set_my_commands(
+                    admin_commands,
+                    scope=BotCommandScopeChat(chat_id=int(admin_id)),
+                )
+            except Exception:
+                # A new admin may not have opened the bot yet. Authorization is
+                # still active; the scoped command menu will be retried on restart.
+                logger.warning("Could not configure one admin-scoped command menu")
         await telegram_application.start()
         await server.serve()
         await telegram_application.stop()

@@ -10,6 +10,7 @@ _test_environment = {
     "DATABASE_URL": "sqlite:///:memory:",
     "BOT_TOKEN": "123456:test-token",
     "ADMIN_USER_ID": "123",
+    "ADMIN_USER_IDS": "123,456",
 }
 _previous_environment = {key: os.environ.get(key) for key in _test_environment}
 os.environ.update(_test_environment)
@@ -49,6 +50,13 @@ class FakeUpdate:
 
 def test_subscription_contact_is_yousef():
     assert bot.SUBSCRIPTION_CONTACT_URL == "https://t.me/Yousef_sbri"
+
+
+def test_both_configured_accounts_are_admins(monkeypatch):
+    monkeypatch.setattr(bot, "ADMIN_USER_IDS", ("123", "456"))
+    assert bot._is_admin(123) is True
+    assert bot._is_admin(456) is True
+    assert bot._is_admin(789) is False
 
 
 def test_default_saudi_button_fills_both_languages(monkeypatch):

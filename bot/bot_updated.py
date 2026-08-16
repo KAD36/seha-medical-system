@@ -27,7 +27,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from config_updated import BOT_TOKEN, ADMIN_USER_ID, OUTPUT_DIR
+from config_updated import ADMIN_USER_IDS, BOT_TOKEN, OUTPUT_DIR
 from pdf_generator_updated import generate_sick_leave_pdf
 from api_client import send_leave_data_to_api
 from message_parser import MessageParser
@@ -141,7 +141,7 @@ async def _show_automatic_dates(message, data: dict) -> None:
 
 
 def _is_admin(user_id) -> bool:
-    return bool(ADMIN_USER_ID and str(user_id) == str(ADMIN_USER_ID))
+    return str(user_id) in ADMIN_USER_IDS
 
 
 async def _require_private_chat(update: Update) -> bool:
@@ -1219,8 +1219,10 @@ def build_application(*, polling: bool = True) -> Application:
     """Build the bot application for polling or for the combined webhook server."""
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN is required. Set it as an environment variable.")
-    if not ADMIN_USER_ID:
-        raise RuntimeError("ADMIN_USER_ID is required. Set it as an environment variable.")
+    if not ADMIN_USER_IDS:
+        raise RuntimeError(
+            "ADMIN_USER_IDS or ADMIN_USER_ID is required. Set it as an environment variable."
+        )
 
     builder = Application.builder().token(BOT_TOKEN)
     if not polling:

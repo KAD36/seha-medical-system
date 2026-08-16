@@ -5,6 +5,7 @@ real Telegram token or administrator ID to this repository.
 """
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,6 +16,24 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
 ADMIN_USER_ID = os.environ.get("ADMIN_USER_ID", "").strip()
+
+
+def parse_admin_user_ids(*values: str) -> tuple[str, ...]:
+    """Return unique numeric Telegram admin IDs in configuration order."""
+    admin_ids = []
+    for value in values:
+        for item in re.split(r"[\s,;]+", value or ""):
+            item = item.strip()
+            if item and item.isascii() and item.isdecimal() and item not in admin_ids:
+                admin_ids.append(item)
+    return tuple(admin_ids)
+
+
+# ADMIN_USER_ID remains supported so existing deployments keep working.
+ADMIN_USER_IDS = parse_admin_user_ids(
+    ADMIN_USER_ID,
+    os.environ.get("ADMIN_USER_IDS", ""),
+)
 
 API_BASE_URL = os.environ.get(
     "API_BASE_URL",
