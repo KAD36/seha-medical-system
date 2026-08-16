@@ -92,6 +92,12 @@ POSITIONS = {
     "طب الأسنان والتخصصات المساندة": "Dentistry and Related Specialties",
 }
 
+# The recovered source keeps facilities and doctors in separate dropdowns and
+# contains no authoritative relationship between them. Add verified mappings
+# here as they become available. Until then, the chosen facility shows the
+# complete saved doctor list plus manual entry instead of inventing links.
+FACILITY_DOCTORS = {}
+
 
 _LETTERS = {
     "ا": "a", "أ": "a", "إ": "i", "آ": "aa", "ب": "b", "ت": "t", "ث": "th",
@@ -132,3 +138,11 @@ def facility_keyboard_rows():
 def facility_logo_path(arabic_name: str) -> str:
     record = FACILITIES.get(normalize_arabic(arabic_name))
     return str(LOGOS_DIR / f"{record[1]}.jpg") if record else ""
+
+
+def doctor_labels_for_facility(arabic_name: str):
+    doctor_names = FACILITY_DOCTORS.get(normalize_arabic(arabic_name), ())
+    if not doctor_names:
+        return list(DOCTORS)
+    allowed = set(doctor_names)
+    return [label for label, doctor in DOCTORS.items() if doctor[0] in allowed]

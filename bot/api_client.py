@@ -62,7 +62,7 @@ def send_leave_data_to_api(user_data):
 
     try:
         logger.info("Sending leave data to the configured API")
-        response = requests.post(API_FULL_URL, json=payload, timeout=30)
+        response = requests.post(API_FULL_URL, json=payload, timeout=60)
 
         if response.status_code in (200, 201):
             result = response.json()
@@ -74,7 +74,7 @@ def send_leave_data_to_api(user_data):
                     "service_code": leave_id,
                     "identity_number": payload["identity_number"],
                 },
-                timeout=30,
+                timeout=60,
             )
             try:
                 search_result = search_response.json()

@@ -6,6 +6,7 @@ Seha Sick Leave Bot - Updated Version
 يدعم الآن استقبال البيانات في رسالة واحدة منسقة
 """
 
+import asyncio
 import logging
 import os
 from datetime import datetime
@@ -37,6 +38,7 @@ from catalog import (
     FACILITIES,
     POSITIONS,
     automatic_english,
+    doctor_labels_for_facility,
     facility_logo_path,
 )
 from identifiers import normalize_identity
@@ -118,6 +120,11 @@ def _set_default_dates(data: dict) -> None:
     data.update(date_converter.process_dates(today, today))
 
 
+def _set_automatic_report_fields(data: dict) -> None:
+    _set_default_dates(data)
+    data['time'] = datetime.now(ZoneInfo("Asia/Riyadh")).strftime("%I:%M %p").lstrip("0")
+
+
 async def _show_automatic_dates(message, data: dict) -> None:
     await message.reply_text(
         "📅 تم ضبط التواريخ تلقائيًا ويمكن تعديلها من شاشة المراجعة:\n"
@@ -196,7 +203,7 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
 
         # Save first so every PDF delivered by the bot is already searchable
         # on the public website.
-        api_response = send_leave_data_to_api(final_data)
+        api_response = await asyncio.to_thread(send_leave_data_to_api, final_data)
         if not api_response.get('success'):
             await update.message.reply_text(
                 f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
@@ -351,7 +358,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif current_state == STATES['EMPLOYER_EN']:
         if message_text != "الخطوة التالية":
             user_data[user_id]['data']['employer_en'] = message_text
-        await ask_doctor_name_ar(update, context)
+        await ask_hospital_name_ar(update, context)
     
     elif current_state == STATES['DOCTOR_NAME_AR']:
         session = user_data[user_id]
@@ -375,9 +382,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             session['data']['doctor_name_en'] = automatic_english(message_text, doctor=True)
         session.pop('custom_doctor_entry', None)
         if doctor:
-            _set_default_dates(session['data'])
+            _set_automatic_report_fields(session['data'])
             await _show_automatic_dates(update.effective_message, session['data'])
-            await ask_hospital_name_ar(update, context)
+            await confirm_data(update, context)
         else:
             await ask_position_ar(update, context)
     
@@ -392,18 +399,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             user_data[user_id]['data']['position_en'] = (
                 POSITIONS.get(message_text) or automatic_english(message_text)
             )
-        _set_default_dates(user_data[user_id]['data'])
+        _set_automatic_report_fields(user_data[user_id]['data'])
         await _show_automatic_dates(update.effective_message, user_data[user_id]['data'])
-        await ask_hospital_name_ar(update, context)
+        await confirm_data(update, context)
     
     elif current_state == STATES['POSITION_EN']:
         if message_text != "الخطوة التالية":
             user_data[user_id]['data']['position_en'] = message_text
         # Use today's Riyadh date automatically. It remains editable from the
         # review screen before generating the report.
-        today = date_converter.get_current_gregorian_date()
-        user_data[user_id]['data'].update(date_converter.process_dates(today, today))
-        await ask_hospital_name_ar(update, context)
+        _set_automatic_report_fields(user_data[user_id]['data'])
+        await _show_automatic_dates(update.effective_message, user_data[user_id]['data'])
+        await confirm_data(update, context)
     
     elif current_state == STATES['ADMISSION_DATE_GREGORIAN']:
         normalized = normalize_gregorian_date(message_text)
@@ -463,8 +470,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             session['data']['hospital_name_en'] = automatic_english(message_text)
             session['data'].pop('custom_logo', None)
         session.pop('custom_facility_entry', None)
-        session['data']['time'] = datetime.now(ZoneInfo("Asia/Riyadh")).strftime("%I:%M %p").lstrip("0")
-        await confirm_data(update, context)
+        await ask_doctor_name_ar(update, context)
     
     elif current_state == STATES['HOSPITAL_NAME_EN']:
         if message_text != "الخطوة التالية":
@@ -553,10 +559,12 @@ async def ask_employer_en(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def ask_doctor_name_ar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['DOCTOR_NAME_AR']
-    
+    facility_name = user_data[user_id]['data'].get('hospital_name_ar', '')
+    labels = doctor_labels_for_facility(facility_name)
     await update.effective_message.reply_text(
-        "👨‍⚕️ اختر الطبيب المعالج من الأزرار:",
-        reply_markup=_catalog_markup(list(DOCTORS), "doctor", 0),
+        f"👨‍⚕️ اختر الطبيب المعالج في {facility_name or 'المنشأة'}:\n"
+        "إذا لم يكن موجودًا اختر «إدخال اسم آخر».",
+        reply_markup=_catalog_markup(labels, "doctor", 0),
     )
 
 async def ask_doctor_name_en(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -741,7 +749,10 @@ async def handle_catalog_callback(update: Update, context: ContextTypes.DEFAULT_
 
     if callback.startswith("doctor_page:"):
         page = int(callback.split(":", 1)[1])
-        await query.edit_message_reply_markup(_catalog_markup(list(DOCTORS), "doctor", page))
+        labels = doctor_labels_for_facility(
+            user_data[user_id]['data'].get('hospital_name_ar', '')
+        )
+        await query.edit_message_reply_markup(_catalog_markup(labels, "doctor", page))
         return
     if callback.startswith("facility_page:"):
         page = int(callback.split(":", 1)[1])
@@ -766,7 +777,7 @@ async def handle_catalog_callback(update: Update, context: ContextTypes.DEFAULT_
 
     if callback.startswith("doctor_select:"):
         index = int(callback.split(":", 1)[1])
-        labels = list(DOCTORS)
+        labels = doctor_labels_for_facility(data.get('hospital_name_ar', ''))
         if not 0 <= index < len(labels):
             return
         label = labels[index]
@@ -777,10 +788,10 @@ async def handle_catalog_callback(update: Update, context: ContextTypes.DEFAULT_
             'position_ar': doctor[2],
             'position_en': doctor[3],
         })
-        _set_default_dates(data)
+        _set_automatic_report_fields(data)
         await query.edit_message_text(f"✅ تم اختيار الطبيب: {doctor[0]} — {doctor[2]}")
         await _show_automatic_dates(query.message, data)
-        await ask_hospital_name_ar(update, context)
+        await confirm_data(update, context)
         return
 
     if callback.startswith("facility_select:"):
@@ -794,10 +805,9 @@ async def handle_catalog_callback(update: Update, context: ContextTypes.DEFAULT_
             'hospital_name_ar': name,
             'hospital_name_en': facility[0],
             'custom_logo': facility_logo_path(name),
-            'time': datetime.now(ZoneInfo("Asia/Riyadh")).strftime("%I:%M %p").lstrip("0"),
         })
         await query.edit_message_text(f"✅ تم اختيار المنشأة: {name}")
-        await confirm_data(update, context)
+        await ask_doctor_name_ar(update, context)
 
 async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """توليد تقرير PDF"""
@@ -809,7 +819,7 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         data = user_data[user_id]['data']
 
         # Do not send a report until its inquiry record is available.
-        api_response = send_leave_data_to_api(data)
+        api_response = await asyncio.to_thread(send_leave_data_to_api, data)
         if not api_response.get('success'):
             await update.message.reply_text(
                 f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
