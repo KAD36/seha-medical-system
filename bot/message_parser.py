@@ -8,6 +8,8 @@ Message Parser for Seha Sick Leave Bot
 import re
 from typing import Dict, Optional
 
+from catalog import automatic_english, nationality_pair
+
 class MessageParser:
     """فئة لتحليل الرسائل المنسقة واستخراج البيانات"""
     
@@ -138,6 +140,12 @@ class MessageParser:
     
     def validate_data(self, data: Dict[str, str]) -> Dict[str, str]:
         """التحقق من صحة البيانات وإضافة القيم الافتراضية"""
+        nationality = nationality_pair(data.get('nationality_ar', ''))
+        if nationality:
+            data['nationality_ar'], data['nationality_en'] = nationality
+        elif data.get('nationality_ar') and not data.get('nationality_en'):
+            data['nationality_en'] = automatic_english(data['nationality_ar'])
+
         # الحقول المطلوبة
         required_fields = {
             'patient_name_ar': 'غير محدد',
@@ -197,4 +205,3 @@ if __name__ == "__main__":
     print("\nالبيانات المستخرجة:")
     for key, value in validated_data.items():
         print(f"{key}: {value}")
-

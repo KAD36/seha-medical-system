@@ -34,12 +34,15 @@ from message_parser import MessageParser
 from date_converter import DateConverter
 from catalog import (
     CUSTOM_ENTRY,
+    DEFAULT_NATIONALITY_BUTTON,
     DOCTORS,
     FACILITIES,
+    OTHER_NATIONALITY_BUTTON,
     POSITIONS,
     automatic_english,
     doctor_labels_for_facility,
     facility_logo_path,
+    nationality_pair,
 )
 from identifiers import normalize_digits, normalize_identity
 from subscriptions import SubscriptionStore
@@ -87,7 +90,7 @@ date_converter = DateConverter()
 subscription_store = SubscriptionStore()
 EDIT_DATES_BUTTON = "✏️ تعديل التواريخ"
 CATALOG_PAGE_SIZE = 7
-SUBSCRIPTION_CONTACT_URL = "https://t.me/enmotaz"
+SUBSCRIPTION_CONTACT_URL = "https://t.me/Yousef_sbri"
 
 
 def normalize_gregorian_date(value: str):
@@ -107,13 +110,14 @@ def _catalog_markup(items, prefix: str, page: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(label, callback_data=f"{prefix}_select:{index}")]
         for index, label in enumerate(items[start:start + CATALOG_PAGE_SIZE], start=start)
     ]
-    navigation = []
-    if page > 0:
-        navigation.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"{prefix}_page:{page - 1}"))
-    navigation.append(InlineKeyboardButton(f"{page + 1}/{page_count}", callback_data="catalog_noop"))
-    if page + 1 < page_count:
-        navigation.append(InlineKeyboardButton("التالي ➡️", callback_data=f"{prefix}_page:{page + 1}"))
-    rows.append(navigation)
+    if items:
+        navigation = []
+        if page > 0:
+            navigation.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"{prefix}_page:{page - 1}"))
+        navigation.append(InlineKeyboardButton(f"{page + 1}/{page_count}", callback_data="catalog_noop"))
+        if page + 1 < page_count:
+            navigation.append(InlineKeyboardButton("التالي ➡️", callback_data=f"{prefix}_page:{page + 1}"))
+        rows.append(navigation)
     rows.append([InlineKeyboardButton(CUSTOM_ENTRY, callback_data=f"{prefix}_custom")])
     return InlineKeyboardMarkup(rows)
 
@@ -157,11 +161,11 @@ def _format_expiry(value: datetime) -> str:
 async def _send_subscription_prompt(update: Update) -> None:
     user = update.effective_user
     keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("💬 التواصل مع معتز للاشتراك", url=SUBSCRIPTION_CONTACT_URL)]]
+        [[InlineKeyboardButton("💬 التواصل مع يوسف للاشتراك", url=SUBSCRIPTION_CONTACT_URL)]]
     )
     await update.effective_message.reply_text(
         "👋 أهلًا بك في بوت تقارير الإجازات المرضية\n\n"
-        "استخدام البوت متاح باشتراك شهري فعّال. للتفعيل تواصل مع @enmotaz "
+        "استخدام البوت متاح باشتراك شهري فعّال. للتفعيل تواصل مع @Yousef_sbri "
         "وأرسل له معرّف حسابك الظاهر أدناه:\n\n"
         f"🆔 معرّفك: `{user.id}`\n\n"
         "بعد تأكيد الاشتراك اضغط /start مرة أخرى.",
@@ -269,6 +273,9 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
         # دمج البيانات
         final_data = {**parsed_data, **date_data}
         final_data['id_number'] = normalize_identity(final_data.get('id_number'))
+        nationality = nationality_pair(final_data.get('nationality_ar', ''))
+        if nationality:
+            final_data['nationality_ar'], final_data['nationality_en'] = nationality
         for _, doctor in DOCTORS.items():
             if final_data.get('doctor_name_ar', '').strip() == doctor[0]:
                 final_data.update({
@@ -422,9 +429,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await ask_nationality_ar(update, context)
     
     elif current_state == STATES['NATIONALITY_AR']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['nationality_ar'] = message_text
-        await ask_nationality_en(update, context)
+        session = user_data[user_id]
+        if message_text == OTHER_NATIONALITY_BUTTON:
+            session['custom_nationality_entry'] = True
+            await update.message.reply_text(
+                "✍️ اكتب الجنسية بالعربية، مثال: مصري أو يمني أو باكستاني:",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        requested = "سعودي" if message_text in {DEFAULT_NATIONALITY_BUTTON, "الخطوة التالية"} else message_text
+        nationality = nationality_pair(requested)
+        if nationality:
+            session['data']['nationality_ar'], session['data']['nationality_en'] = nationality
+            session.pop('custom_nationality_entry', None)
+            await update.message.reply_text(
+                f"✅ الجنسية: {nationality[0]} / {nationality[1]}",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            await ask_employer_ar(update, context)
+        else:
+            session['data']['nationality_ar'] = message_text
+            await ask_nationality_en(update, context)
     
     elif current_state == STATES['NATIONALITY_EN']:
         if message_text != "الخطوة التالية":
@@ -601,8 +626,14 @@ async def ask_nationality_ar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['NATIONALITY_AR']
     
-    message = "✍️ يرجى إدخال الجنسية باللغة العربية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    message = (
+        "🌍 اختر «سعودي» وهو الخيار الافتراضي، أو اكتب الجنسية بالعربية "
+        "وسأضيف الإنجليزية تلقائيًا."
+    )
+    keyboard = [
+        [KeyboardButton(DEFAULT_NATIONALITY_BUTTON)],
+        [KeyboardButton(OTHER_NATIONALITY_BUTTON)],
+    ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -611,11 +642,8 @@ async def ask_nationality_en(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['NATIONALITY_EN']
     
-    message = "✍️ يرجى إدخال الجنسية باللغة الإنجليزية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    
-    await update.message.reply_text(message, reply_markup=reply_markup)
+    message = "✍️ هذه الجنسية غير موجودة في قاموس الترجمة بعد. اكتبها بالإنجليزية مرة واحدة:"
+    await update.message.reply_text(message, reply_markup=ReplyKeyboardRemove())
 
 async def ask_employer_ar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
@@ -642,9 +670,19 @@ async def ask_doctor_name_ar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data[user_id]['state'] = STATES['DOCTOR_NAME_AR']
     facility_name = user_data[user_id]['data'].get('hospital_name_ar', '')
     labels = doctor_labels_for_facility(facility_name)
+    if labels:
+        message = (
+            f"👨‍⚕️ اختر الطبيب المعالج في {facility_name or 'المنشأة'}:\n"
+            "الأسماء المعروضة مرتبطة بالمنشأة من مصدرها الرسمي. "
+            "إذا لم يكن الطبيب موجودًا اختر «إدخال اسم آخر»."
+        )
+    else:
+        message = (
+            f"👨‍⚕️ لا توجد قائمة أطباء موثقة منشورة لـ {facility_name or 'هذه المنشأة'} "
+            "ضمن البيانات الحالية. اختر «إدخال اسم آخر» واكتب الاسم والمسمى الوظيفي يدويًا."
+        )
     await update.effective_message.reply_text(
-        f"👨‍⚕️ اختر الطبيب المعالج في {facility_name or 'المنشأة'}:\n"
-        "إذا لم يكن موجودًا اختر «إدخال اسم آخر».",
+        message,
         reply_markup=_catalog_markup(labels, "doctor", 0),
     )
 

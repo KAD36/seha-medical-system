@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 CUSTOM_ENTRY = "✍️ إدخال اسم آخر"
+DEFAULT_NATIONALITY_BUTTON = "🇸🇦 سعودي (الافتراضي)"
+OTHER_NATIONALITY_BUTTON = "✍️ جنسية أخرى"
 LOGOS_DIR = Path(__file__).resolve().parent / "facility_logos"
 
 
@@ -15,7 +17,7 @@ DOCTORS = {
     "حسن ضيف الله الفاضل - استشاري": ("حسن ضيف الله الفاضل", "HASAN DAYF ALLAH ALFADIL", "استشاري", "Consultant"),
     "عبدالله مفرح علي عسير - طبيب عام": ("عبدالله مفرح علي عسير", "ABDULLAH MUFRAH ALI ASIR", "طبيب عام", "General Practitioner"),
     "عبدالله محمد العمري - استشاري": ("عبدالله محمد العمري", "ABDULLAH MOHAMMED AL-OMARI", "استشاري", "Consultant"),
-    "خالد علي العنزي - استشاري": ("خالد علي العنزي", "KHALID ALI AL-ANZI", "استشاري", "Consultant"),
+    "خالد علي العنزي - استشاري الطب الباطني": ("خالد علي العنزي", "KHALID ALI AL-ANZI", "استشاري الطب الباطني", "Internal Medicine Consultant"),
     "احمد اسامة ابوالعينين - استشاري": ("احمد اسامة ابوالعينين", "AHMED OSAMA ABU ALAYNIN", "استشاري", "Consultant"),
     "فيصل وليد غالب شهوان - استشاري": ("فيصل وليد غالب شهوان", "FAISAL WALID GHALIB SHAHWAN", "استشاري", "Consultant"),
     "محمد الكاف - استشاري": ("محمد الكاف", "MUHAMMAD AL-KAF", "استشاري", "Consultant"),
@@ -85,6 +87,7 @@ FACILITIES = {
 
 POSITIONS = {
     "استشاري": "Consultant",
+    "استشاري الطب الباطني": "Internal Medicine Consultant",
     "طبيب عام": "General Practitioner",
     "طب الاسنان": "Dentistry",
     "طب الأسنان": "Dentistry",
@@ -92,11 +95,114 @@ POSITIONS = {
     "طب الأسنان والتخصصات المساندة": "Dentistry and Related Specialties",
 }
 
-# The recovered source keeps facilities and doctors in separate dropdowns and
-# contains no authoritative relationship between them. Add verified mappings
-# here as they become available. Until then, the chosen facility shows the
-# complete saved doctor list plus manual entry instead of inventing links.
-FACILITY_DOCTORS = {}
+# Only current relationships confirmed by an official facility directory belong
+# here. The remaining recovered names stay available for formatted legacy input,
+# but are not attributed to a facility based on name similarity.
+FACILITY_DOCTORS = {
+    "السعودي الالماني الصحي": ("خالد علي العنزي",),
+}
+
+# Public source used to verify each relationship above (reviewed 2026-08-16).
+FACILITY_DOCTOR_SOURCES = {
+    ("السعودي الالماني الصحي", "خالد علي العنزي"):
+        "https://riyadh.saudigermanhealth.com/ar/doctor/د-خالد-علي-العنزي",
+}
+
+
+_NATIONALITY_RECORDS = {
+    "سعودي": ("سعودي", "Saudi Arabia"),
+    "السعودية": ("سعودي", "Saudi Arabia"),
+    "مصري": ("مصري", "Egyptian"),
+    "يمني": ("يمني", "Yemeni"),
+    "سوداني": ("سوداني", "Sudanese"),
+    "سوري": ("سوري", "Syrian"),
+    "اردني": ("أردني", "Jordanian"),
+    "فلسطيني": ("فلسطيني", "Palestinian"),
+    "لبناني": ("لبناني", "Lebanese"),
+    "عراقي": ("عراقي", "Iraqi"),
+    "كويتي": ("كويتي", "Kuwaiti"),
+    "بحريني": ("بحريني", "Bahraini"),
+    "قطري": ("قطري", "Qatari"),
+    "اماراتي": ("إماراتي", "Emirati"),
+    "عماني": ("عُماني", "Omani"),
+    "مغربي": ("مغربي", "Moroccan"),
+    "جزائري": ("جزائري", "Algerian"),
+    "تونسي": ("تونسي", "Tunisian"),
+    "ليبي": ("ليبي", "Libyan"),
+    "موريتاني": ("موريتاني", "Mauritanian"),
+    "صومالي": ("صومالي", "Somali"),
+    "جيبوتي": ("جيبوتي", "Djiboutian"),
+    "باكستاني": ("باكستاني", "Pakistani"),
+    "هندي": ("هندي", "Indian"),
+    "بنغلاديشي": ("بنغلاديشي", "Bangladeshi"),
+    "فلبيني": ("فلبيني", "Filipino"),
+    "اندونيسي": ("إندونيسي", "Indonesian"),
+    "اثيوبي": ("إثيوبي", "Ethiopian"),
+    "اريتري": ("إريتري", "Eritrean"),
+    "تركي": ("تركي", "Turkish"),
+    "افغاني": ("أفغاني", "Afghan"),
+    "نيبالي": ("نيبالي", "Nepalese"),
+    "سريلانكي": ("سريلانكي", "Sri Lankan"),
+}
+
+_NATIONALITY_ALIASES = {
+    "المملكة العربية السعودية": "سعودي", "السعودية": "سعودي",
+    "سعودية": "سعودي", "سعوديه": "سعودي",
+    "مصر": "مصري",
+    "مصرية": "مصري", "مصريه": "مصري",
+    "اليمن": "يمني",
+    "يمنية": "يمني", "يمنيه": "يمني",
+    "السودان": "سوداني",
+    "سودانية": "سوداني", "سودانيه": "سوداني",
+    "سوريا": "سوري",
+    "سورية": "سوري", "سوريه": "سوري",
+    "الاردن": "اردني",
+    "اردنية": "اردني", "اردنيه": "اردني",
+    "فلسطين": "فلسطيني",
+    "فلسطينية": "فلسطيني", "فلسطينيه": "فلسطيني",
+    "لبنان": "لبناني",
+    "لبنانية": "لبناني", "لبنانيه": "لبناني",
+    "العراق": "عراقي",
+    "عراقية": "عراقي", "عراقيه": "عراقي",
+    "الكويت": "كويتي",
+    "كويتية": "كويتي", "كويتيه": "كويتي",
+    "البحرين": "بحريني",
+    "بحرينية": "بحريني", "بحرينيه": "بحريني",
+    "قطر": "قطري",
+    "قطرية": "قطري", "قطريه": "قطري",
+    "الامارات": "اماراتي", "الامارات العربية المتحدة": "اماراتي",
+    "اماراتية": "اماراتي", "اماراتيه": "اماراتي",
+    "عمان": "عماني", "سلطنة عمان": "عماني",
+    "عمانية": "عماني", "عمانيه": "عماني",
+    "المغرب": "مغربي",
+    "مغربية": "مغربي", "مغربيه": "مغربي",
+    "الجزائر": "جزائري",
+    "جزائرية": "جزائري", "جزائريه": "جزائري",
+    "تونس": "تونسي",
+    "تونسية": "تونسي", "تونسيه": "تونسي",
+    "ليبيا": "ليبي",
+    "ليبية": "ليبي", "ليبيه": "ليبي",
+    "موريتانيا": "موريتاني", "موريتانية": "موريتاني", "موريتانيه": "موريتاني",
+    "الصومال": "صومالي", "صومالية": "صومالي", "صوماليه": "صومالي",
+    "جيبوتية": "جيبوتي", "جيبوتيه": "جيبوتي",
+    "باكستان": "باكستاني",
+    "باكستانية": "باكستاني", "باكستانيه": "باكستاني",
+    "الهند": "هندي",
+    "هندية": "هندي", "هنديه": "هندي",
+    "بنغلاديش": "بنغلاديشي", "بنغلاديشية": "بنغلاديشي", "بنغلاديشيه": "بنغلاديشي",
+    "الفلبين": "فلبيني",
+    "فلبينية": "فلبيني", "فلبينيه": "فلبيني",
+    "اندونيسيا": "اندونيسي",
+    "اندونيسية": "اندونيسي", "اندونيسيه": "اندونيسي",
+    "اثيوبيا": "اثيوبي",
+    "اثيوبية": "اثيوبي", "اثيوبيه": "اثيوبي",
+    "اريتريا": "اريتري", "اريترية": "اريتري", "اريتريه": "اريتري",
+    "تركيا": "تركي",
+    "تركية": "تركي", "تركيه": "تركي",
+    "افغانستان": "افغاني", "افغانية": "افغاني", "افغانيه": "افغاني",
+    "نيبال": "نيبالي", "نيبالية": "نيبالي", "نيباليه": "نيبالي",
+    "سريلانكا": "سريلانكي", "سريلانكية": "سريلانكي", "سريلانكيه": "سريلانكي",
+}
 
 
 _LETTERS = {
@@ -112,6 +218,14 @@ def normalize_arabic(value: str) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).strip()
     text = re.sub(r"[\u064b-\u065f\u0670]", "", text)
     return re.sub(r"\s+", " ", text)
+
+
+def nationality_pair(arabic: str):
+    """Return a reviewed Arabic/English nationality pair, if recognized."""
+    value = normalize_arabic(arabic)
+    key = value.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا").replace("ؤ", "و")
+    key = _NATIONALITY_ALIASES.get(key, key)
+    return _NATIONALITY_RECORDS.get(key)
 
 
 def automatic_english(arabic: str, *, doctor: bool = False) -> str:
@@ -142,7 +256,5 @@ def facility_logo_path(arabic_name: str) -> str:
 
 def doctor_labels_for_facility(arabic_name: str):
     doctor_names = FACILITY_DOCTORS.get(normalize_arabic(arabic_name), ())
-    if not doctor_names:
-        return list(DOCTORS)
     allowed = set(doctor_names)
     return [label for label, doctor in DOCTORS.items() if doctor[0] in allowed]
