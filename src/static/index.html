@@ -353,8 +353,13 @@
         document.getElementById('inquiryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const serviceCode = document.getElementById('service_code').value.trim();
-            const identityNumber = document.getElementById('identity_number').value.trim();
+            const normalizeDigits = (value) => value
+                .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+            const serviceCode = normalizeDigits(document.getElementById('service_code').value)
+                .toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const identityNumber = normalizeDigits(document.getElementById('identity_number').value)
+                .replace(/\D/g, '');
             
             if (!serviceCode || !identityNumber) {
                 showAlert('يرجى إدخال رمز الخدمة ورقم الهوية', 'danger');

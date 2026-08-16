@@ -8,6 +8,7 @@ from datetime import datetime
 import requests
 
 from config import API_FULL_URL
+from identifiers import generate_leave_id, normalize_identity
 
 
 logger = logging.getLogger(__name__)
@@ -22,17 +23,6 @@ def calculate_days(admission_date, discharge_date):
         return 1
 
 
-def generate_leave_id(id_number, admission_date, discharge_date):
-    try:
-        id_part = id_number[-4:] if len(id_number) >= 4 else id_number
-        admission_nums = "".join(filter(str.isdigit, admission_date))[-3:]
-        discharge_nums = "".join(filter(str.isdigit, discharge_date))[-4:]
-        leave_number = (id_part + admission_nums + discharge_nums).ljust(11, "0")[:11]
-        return f"PSL{leave_number}"
-    except Exception:
-        return f"PSL{id_number[-4:]}0000000"
-
-
 def _payload_from_user_data(user_data):
     admission_date = user_data.get("admission_date_gregorian", "")
     discharge_date = user_data.get("discharge_date_gregorian", "")
@@ -42,7 +32,7 @@ def _payload_from_user_data(user_data):
 
     return leave_id, {
         "service_code": leave_id,
-        "identity_number": user_data.get("id_number", ""),
+        "identity_number": normalize_identity(user_data.get("id_number", "")),
         "patient_name_ar": user_data.get("patient_name_ar", ""),
         "patient_name_en": user_data.get("patient_name_en", ""),
         "nationality_ar": user_data.get("nationality_ar", ""),
@@ -76,10 +66,32 @@ def send_leave_data_to_api(user_data):
 
         if response.status_code in (200, 201):
             result = response.json()
+            # A successful write is not enough: verify that the exact pair
+            # printed in the report is immediately searchable.
+            search_response = requests.post(
+                f"{API_FULL_URL}/search",
+                json={
+                    "service_code": leave_id,
+                    "identity_number": payload["identity_number"],
+                },
+                timeout=30,
+            )
+            try:
+                search_result = search_response.json()
+            except ValueError:
+                search_result = {}
+            if search_response.status_code != 200 or not search_result.get("found"):
+                logger.error("Saved leave could not be verified by inquiry endpoint")
+                return {
+                    "success": False,
+                    "message": "تم الإرسال لكن تعذر التحقق من ظهوره في الاستعلام",
+                    "leave_id": leave_id,
+                }
             return {
                 "success": True,
                 "message": result.get("message", "Saved successfully"),
                 "leave_id": leave_id,
+                "identity_number": payload["identity_number"],
                 "data": result,
             }
 

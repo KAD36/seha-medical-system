@@ -11,6 +11,7 @@ from datetime import datetime
 from fpdf import FPDF
 from PIL import Image
 from config_updated import *
+from identifiers import generate_leave_id, normalize_identity
 import arabic_reshaper
 from bidi.algorithm import get_display
 
@@ -94,17 +95,7 @@ class SickLeavePDF(FPDF):
     
     def generate_leave_id(self, id_number, admission_date, discharge_date):
         """توليد رمز الإجازة"""
-        # PSL + رقم مكون من رقم الهوية وتاريخ الدخول والخروج (11 رقم)
-        id_part = id_number[-4:] if len(id_number) >= 4 else id_number
-        
-        # استخراج الأرقام من التواريخ
-        admission_nums = ''.join(filter(str.isdigit, admission_date))[-3:]
-        discharge_nums = ''.join(filter(str.isdigit, discharge_date))[-4:]
-        
-        # تكوين الرقم (11 رقم)
-        leave_number = (id_part + admission_nums + discharge_nums).ljust(11, '0')[:11]
-        
-        return f"PSL{leave_number}"
+        return generate_leave_id(id_number, admission_date, discharge_date)
     
     def calculate_duration(self, admission_date_hijri, discharge_date_hijri, admission_date_gregorian, discharge_date_gregorian):
         """حساب مدة الإجازة"""
@@ -160,7 +151,7 @@ class SickLeavePDF(FPDF):
         }
         
         # توليد البيانات
-        leave_id = self.generate_leave_id(
+        leave_id = data.get('service_code') or self.generate_leave_id(
             data.get('id_number', '1234567890'),
             data.get('admission_date_gregorian', '01-01-2025'),
             data.get('discharge_date_gregorian', '01-01-2025')
@@ -332,7 +323,6 @@ class SickLeavePDF(FPDF):
         """إضافة عناصر التذييل"""
         try:
             # إنشاء الباركود
-            qr_data = f"{data.get('id_number', '')} - {self.generate_leave_id(data.get('id_number', ''), data.get('admission_date_gregorian', ''), data.get('discharge_date_gregorian', ''))} - {data.get('issue_date_gregorian', '')}"
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
             # Keep the printed URL, clickable URL, and QR destination identical.
             report_url = PUBLIC_SITE_URL
@@ -446,6 +436,15 @@ class SickLeavePDF(FPDF):
 def generate_sick_leave_pdf(data, user_id):
     """توليد تقرير الإجازة المرضية"""
     try:
+        # Freeze the exact identifiers that were saved and verified by the API.
+        data = dict(data)
+        data['id_number'] = normalize_identity(data.get('id_number'))
+        data['service_code'] = data.get('service_code') or generate_leave_id(
+            data.get('id_number'),
+            data.get('admission_date_gregorian'),
+            data.get('discharge_date_gregorian'),
+        )
+
         # إنشاء مجلد الإخراج
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         

@@ -8,13 +8,38 @@ Seha Sick Leave Bot - Updated Version
 
 import logging
 import os
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardRemove,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes,
+)
 from config_updated import BOT_TOKEN, ADMIN_USER_ID, OUTPUT_DIR
 from pdf_generator_updated import generate_sick_leave_pdf
 from api_client import send_leave_data_to_api
 from message_parser import MessageParser
 from date_converter import DateConverter
+from catalog import (
+    CUSTOM_ENTRY,
+    DOCTORS,
+    FACILITIES,
+    POSITIONS,
+    automatic_english,
+    facility_logo_path,
+)
+from identifiers import normalize_identity
 
 # إعداد التسجيل
 logging.basicConfig(
@@ -57,6 +82,7 @@ user_data = {}
 message_parser = MessageParser()
 date_converter = DateConverter()
 EDIT_DATES_BUTTON = "✏️ تعديل التواريخ"
+CATALOG_PAGE_SIZE = 7
 
 
 def normalize_gregorian_date(value: str):
@@ -66,6 +92,38 @@ def normalize_gregorian_date(value: str):
         return None
     day, month, year = parsed
     return f"{day:02d}-{month:02d}-{year}"
+
+
+def _catalog_markup(items, prefix: str, page: int) -> InlineKeyboardMarkup:
+    page_count = max(1, (len(items) + CATALOG_PAGE_SIZE - 1) // CATALOG_PAGE_SIZE)
+    page = max(0, min(page, page_count - 1))
+    start = page * CATALOG_PAGE_SIZE
+    rows = [
+        [InlineKeyboardButton(label, callback_data=f"{prefix}_select:{index}")]
+        for index, label in enumerate(items[start:start + CATALOG_PAGE_SIZE], start=start)
+    ]
+    navigation = []
+    if page > 0:
+        navigation.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"{prefix}_page:{page - 1}"))
+    navigation.append(InlineKeyboardButton(f"{page + 1}/{page_count}", callback_data="catalog_noop"))
+    if page + 1 < page_count:
+        navigation.append(InlineKeyboardButton("التالي ➡️", callback_data=f"{prefix}_page:{page + 1}"))
+    rows.append(navigation)
+    rows.append([InlineKeyboardButton(CUSTOM_ENTRY, callback_data=f"{prefix}_custom")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _set_default_dates(data: dict) -> None:
+    today = date_converter.get_current_gregorian_date()
+    data.update(date_converter.process_dates(today, today))
+
+
+async def _show_automatic_dates(message, data: dict) -> None:
+    await message.reply_text(
+        "📅 تم ضبط التواريخ تلقائيًا ويمكن تعديلها من شاشة المراجعة:\n"
+        f"الدخول: {data['admission_date_gregorian']} م / {data['admission_date_hijri']} هـ\n"
+        f"الخروج: {data['discharge_date_gregorian']} م / {data['discharge_date_hijri']} هـ"
+    )
 
 
 async def ensure_authorized(update: Update) -> bool:
@@ -86,42 +144,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.effective_user.id
     
-    # رسالة الترحيب المحدثة
-    welcome_message = """👋 مرحبًا بك في بوت منصة صحة الرسمي - النسخة المحدثة
+    welcome_message = """👋 مرحبًا بك في بوت تقارير الإجازات المرضية
 
-يقدم هذا البوت خدمة إصدار تقرير إجازة مرضية رسمي بصيغة PDF معتمد من وزارة الصحة السعودية.
+اضغط «إنشاء تقرير جديد»، ثم اتبع الخطوات المختصرة.
 
-🔒 الاستخدام مخصص فقط للمستخدمين المعتمدين من قبل منصة صحة.
-
-⚙️ طرق الاستخدام:
-
-🚀 الطريقة الجديدة (الموصى بها):
-أرسل جميع البيانات في رسالة واحدة منسقة كالتالي:
-
-👤 اسم المريض (عربي): عبدالله محمد علي
-👤 اسم المريض (إنجليزي): Abdullah Mohammed Ali
-🆔 رقم الهوية: 828287654
-🌍 الجنسية (عربي): السعودية
-🌍 الجنسية (إنجليزي): Saudi Arabia
-🏢 جهة العمل (عربي): طالب جامعي
-🏢 جهة العمل (إنجليزي): University Student
-👨‍⚕️ اسم الطبيب (عربي): المقبني
-👨‍⚕️ اسم الطبيب (إنجليزي): Almakbany
-💼 المسمى الوظيفي (عربي): طبيب عام
-💼 المسمى الوظيفي (إنجليزي): General
-📅 تاريخ الدخول (ميلادي): 20-09-2025
-📅 تاريخ الخروج (ميلادي): 21-09-2025
-🏥 اسم المنشأة (عربي): مستشفى الملك فيصل التخصصي
-🏥 اسم المنشأة (إنجليزي): King Faisal Specialist Hospital
-⏰ الوقت: 10:20 AM
-
-سيقوم البوت تلقائياً بـ:
-✅ تحويل التواريخ من الميلادي إلى الهجري
-✅ تعيين تاريخ إصدار التقرير = تاريخ الخروج
-✅ توليد التقرير بصيغة PDF
-
-📝 الطريقة التقليدية:
-اضغط على زر "إنشاء تقرير جديد" للإدخال خطوة بخطوة."""
+✅ الأطباء والمنشآت عبر أزرار سهلة
+✅ الاسم الإنجليزي والتخصص والشعار تلقائيًا
+✅ التاريخ الميلادي والهجري والوقت تلقائيًا
+✅ يمكنك تعديل التواريخ قبل الحفظ
+✅ لا يُرسل التقرير إلا بعد التحقق من ظهوره في الاستعلام"""
     
     # إنشاء لوحة المفاتيح
     keyboard = [[KeyboardButton("🆕 إنشاء تقرير جديد")]]
@@ -149,6 +180,19 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
         
         # دمج البيانات
         final_data = {**parsed_data, **date_data}
+        final_data['id_number'] = normalize_identity(final_data.get('id_number'))
+        for _, doctor in DOCTORS.items():
+            if final_data.get('doctor_name_ar', '').strip() == doctor[0]:
+                final_data.update({
+                    'doctor_name_en': doctor[1],
+                    'position_ar': doctor[2],
+                    'position_en': doctor[3],
+                })
+                break
+        facility = FACILITIES.get(final_data.get('hospital_name_ar', '').strip())
+        if facility:
+            final_data['hospital_name_en'] = facility[0]
+            final_data['custom_logo'] = facility_logo_path(final_data['hospital_name_ar'])
 
         # Save first so every PDF delivered by the bot is already searchable
         # on the public website.
@@ -158,6 +202,8 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
                 f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
             )
             return
+        final_data['service_code'] = api_response['leave_id']
+        final_data['id_number'] = api_response['identity_number']
         
         # إرسال رسالة تأكيد التحويل
         await update.message.reply_text(
@@ -180,7 +226,11 @@ async def handle_formatted_message(update: Update, context: ContextTypes.DEFAULT
                     caption="✅ تم إنشاء تقرير الإجازة المرضية بنجاح!"
                 )
             
-            await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
+            await update.message.reply_text(
+                "✅ تم حفظ التقرير والتحقق من ظهوره في الاستعلام.\n"
+                f"رمز الخدمة: {final_data['service_code']}\n"
+                f"رقم الهوية: {final_data['id_number']}"
+            )
             
             # رسالة النجاح النهائية مع زر الشعار
             success_message = """🎉 تم إنشاء التقرير بنجاح!
@@ -280,7 +330,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     elif current_state == STATES['ID_NUMBER']:
         if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['id_number'] = message_text
+            user_data[user_id]['data']['id_number'] = normalize_identity(message_text)
         await ask_nationality_ar(update, context)
     
     elif current_state == STATES['NATIONALITY_AR']:
@@ -304,9 +354,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await ask_doctor_name_ar(update, context)
     
     elif current_state == STATES['DOCTOR_NAME_AR']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['doctor_name_ar'] = message_text
-        await ask_doctor_name_en(update, context)
+        session = user_data[user_id]
+        if message_text == CUSTOM_ENTRY and not session.get('custom_doctor_entry'):
+            session['custom_doctor_entry'] = True
+            await update.message.reply_text(
+                "✍️ اكتب اسم الطبيب بالعربية:",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        doctor = DOCTORS.get(message_text)
+        if doctor:
+            session['data'].update({
+                'doctor_name_ar': doctor[0],
+                'doctor_name_en': doctor[1],
+                'position_ar': doctor[2],
+                'position_en': doctor[3],
+            })
+        elif message_text != "الخطوة التالية":
+            session['data']['doctor_name_ar'] = message_text
+            session['data']['doctor_name_en'] = automatic_english(message_text, doctor=True)
+        session.pop('custom_doctor_entry', None)
+        if doctor:
+            _set_default_dates(session['data'])
+            await _show_automatic_dates(update.effective_message, session['data'])
+            await ask_hospital_name_ar(update, context)
+        else:
+            await ask_position_ar(update, context)
     
     elif current_state == STATES['DOCTOR_NAME_EN']:
         if message_text != "الخطوة التالية":
@@ -316,7 +389,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     elif current_state == STATES['POSITION_AR']:
         if message_text != "الخطوة التالية":
             user_data[user_id]['data']['position_ar'] = message_text
-        await ask_position_en(update, context)
+            user_data[user_id]['data']['position_en'] = (
+                POSITIONS.get(message_text) or automatic_english(message_text)
+            )
+        _set_default_dates(user_data[user_id]['data'])
+        await _show_automatic_dates(update.effective_message, user_data[user_id]['data'])
+        await ask_hospital_name_ar(update, context)
     
     elif current_state == STATES['POSITION_EN']:
         if message_text != "الخطوة التالية":
@@ -367,9 +445,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await confirm_data(update, context)
     
     elif current_state == STATES['HOSPITAL_NAME_AR']:
-        if message_text != "الخطوة التالية":
-            user_data[user_id]['data']['hospital_name_ar'] = message_text
-        await ask_hospital_name_en(update, context)
+        session = user_data[user_id]
+        if message_text == CUSTOM_ENTRY and not session.get('custom_facility_entry'):
+            session['custom_facility_entry'] = True
+            await update.message.reply_text(
+                "✍️ اكتب اسم المستشفى أو المنشأة بالعربية:",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        facility = FACILITIES.get(message_text)
+        if facility:
+            session['data']['hospital_name_ar'] = message_text
+            session['data']['hospital_name_en'] = facility[0]
+            session['data']['custom_logo'] = facility_logo_path(message_text)
+        elif message_text != "الخطوة التالية":
+            session['data']['hospital_name_ar'] = message_text
+            session['data']['hospital_name_en'] = automatic_english(message_text)
+            session['data'].pop('custom_logo', None)
+        session.pop('custom_facility_entry', None)
+        session['data']['time'] = datetime.now(ZoneInfo("Asia/Riyadh")).strftime("%I:%M %p").lstrip("0")
+        await confirm_data(update, context)
     
     elif current_state == STATES['HOSPITAL_NAME_EN']:
         if message_text != "الخطوة التالية":
@@ -459,18 +554,18 @@ async def ask_doctor_name_ar(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['DOCTOR_NAME_AR']
     
-    message = "✍️ يرجى إدخال اسم الطبيب المعالج باللغة العربية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    
-    await update.message.reply_text(message, reply_markup=reply_markup)
+    await update.effective_message.reply_text(
+        "👨‍⚕️ اختر الطبيب المعالج من الأزرار:",
+        reply_markup=_catalog_markup(list(DOCTORS), "doctor", 0),
+    )
 
 async def ask_doctor_name_en(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['DOCTOR_NAME_EN']
     
-    message = "✍️ يرجى إدخال اسم الطبيب المعالج باللغة الإنجليزية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    value = user_data[user_id]['data'].get('doctor_name_en', '')
+    message = "✍️ اسم الطبيب باللغة الإنجليزية (معبأ تلقائيًا، ويمكن تعديله):"
+    keyboard = [[KeyboardButton(value or "الخطوة التالية")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -479,8 +574,9 @@ async def ask_position_ar(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['POSITION_AR']
     
-    message = "✍️ يرجى إدخال المسمى الوظيفي باللغة العربية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    value = user_data[user_id]['data'].get('position_ar', '')
+    message = "✍️ المسمى الوظيفي بالعربية (معبأ تلقائيًا، ويمكن تعديله):"
+    keyboard = [[KeyboardButton(value or "الخطوة التالية")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -489,8 +585,9 @@ async def ask_position_en(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['POSITION_EN']
     
-    message = "✍️ يرجى إدخال المسمى الوظيفي باللغة الإنجليزية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    value = user_data[user_id]['data'].get('position_en', '')
+    message = "✍️ المسمى الوظيفي بالإنجليزية (معبأ تلقائيًا، ويمكن تعديله):"
+    keyboard = [[KeyboardButton(value or "الخطوة التالية")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -552,18 +649,18 @@ async def ask_hospital_name_ar(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['HOSPITAL_NAME_AR']
     
-    message = "🏥 يرجى إدخال اسم المستشفى/المجمع/المستوصف بالعربية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-    
-    await update.message.reply_text(message, reply_markup=reply_markup)
+    await update.effective_message.reply_text(
+        "🏥 اختر المستشفى/المجمع/المستوصف من الأزرار:",
+        reply_markup=_catalog_markup(list(FACILITIES), "facility", 0),
+    )
 
 async def ask_hospital_name_en(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     user_data[user_id]['state'] = STATES['HOSPITAL_NAME_EN']
     
-    message = "🏥 يرجى إدخال اسم المستشفى/المجمع/المستوصف بالإنجليزية"
-    keyboard = [[KeyboardButton("الخطوة التالية")]]
+    value = user_data[user_id]['data'].get('hospital_name_en', '')
+    message = "🏥 اسم المنشأة بالإنجليزية (معبأ تلقائيًا، ويمكن تعديله):"
+    keyboard = [[KeyboardButton(value or "الخطوة التالية")]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
     await update.message.reply_text(message, reply_markup=reply_markup)
@@ -623,7 +720,84 @@ async def confirm_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     
-    await update.message.reply_text(review_text, reply_markup=reply_markup)
+    await update.effective_message.reply_text(review_text, reply_markup=reply_markup)
+
+
+async def handle_catalog_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Paginated doctor/facility buttons without changing report contents."""
+    if not await ensure_authorized(update):
+        return
+
+    query = update.callback_query
+    await query.answer()
+    callback = query.data or ""
+    if callback == "catalog_noop":
+        return
+
+    user_id = update.effective_user.id
+    if user_id not in user_data or 'data' not in user_data[user_id]:
+        await query.message.reply_text("انتهت الجلسة. اضغط /start ثم أنشئ تقريرًا جديدًا.")
+        return
+
+    if callback.startswith("doctor_page:"):
+        page = int(callback.split(":", 1)[1])
+        await query.edit_message_reply_markup(_catalog_markup(list(DOCTORS), "doctor", page))
+        return
+    if callback.startswith("facility_page:"):
+        page = int(callback.split(":", 1)[1])
+        await query.edit_message_reply_markup(_catalog_markup(list(FACILITIES), "facility", page))
+        return
+
+    session = user_data[user_id]
+    data = session['data']
+
+    if callback == "doctor_custom":
+        session['state'] = STATES['DOCTOR_NAME_AR']
+        session['custom_doctor_entry'] = True
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("✍️ اكتب اسم الطبيب بالعربية:", reply_markup=ReplyKeyboardRemove())
+        return
+    if callback == "facility_custom":
+        session['state'] = STATES['HOSPITAL_NAME_AR']
+        session['custom_facility_entry'] = True
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("✍️ اكتب اسم المستشفى أو المنشأة بالعربية:", reply_markup=ReplyKeyboardRemove())
+        return
+
+    if callback.startswith("doctor_select:"):
+        index = int(callback.split(":", 1)[1])
+        labels = list(DOCTORS)
+        if not 0 <= index < len(labels):
+            return
+        label = labels[index]
+        doctor = DOCTORS[label]
+        data.update({
+            'doctor_name_ar': doctor[0],
+            'doctor_name_en': doctor[1],
+            'position_ar': doctor[2],
+            'position_en': doctor[3],
+        })
+        _set_default_dates(data)
+        await query.edit_message_text(f"✅ تم اختيار الطبيب: {doctor[0]} — {doctor[2]}")
+        await _show_automatic_dates(query.message, data)
+        await ask_hospital_name_ar(update, context)
+        return
+
+    if callback.startswith("facility_select:"):
+        index = int(callback.split(":", 1)[1])
+        names = list(FACILITIES)
+        if not 0 <= index < len(names):
+            return
+        name = names[index]
+        facility = FACILITIES[name]
+        data.update({
+            'hospital_name_ar': name,
+            'hospital_name_en': facility[0],
+            'custom_logo': facility_logo_path(name),
+            'time': datetime.now(ZoneInfo("Asia/Riyadh")).strftime("%I:%M %p").lstrip("0"),
+        })
+        await query.edit_message_text(f"✅ تم اختيار المنشأة: {name}")
+        await confirm_data(update, context)
 
 async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """توليد تقرير PDF"""
@@ -641,6 +815,8 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"❌ لم يتم إنشاء التقرير لأن حفظه في الموقع تعذر: {api_response['message']}"
             )
             return
+        data['service_code'] = api_response['leave_id']
+        data['id_number'] = api_response['identity_number']
         
         # توليد التقرير
         pdf_path = generate_sick_leave_pdf(data, str(user_id))
@@ -654,7 +830,11 @@ async def generate_pdf_report(update: Update, context: ContextTypes.DEFAULT_TYPE
                     caption="✅ تم إنشاء تقرير الإجازة المرضية بنجاح!"
                 )
             
-            await update.message.reply_text("✅ تم حفظ البيانات في النظام بنجاح.")
+            await update.message.reply_text(
+                "✅ تم حفظ التقرير والتحقق من ظهوره في الاستعلام.\n"
+                f"رمز الخدمة: {data['service_code']}\n"
+                f"رقم الهوية: {data['id_number']}"
+            )
             
         else:
             await update.message.reply_text("❌ حدث خطأ في توليد التقرير. يرجى المحاولة مرة أخرى.")
@@ -747,6 +927,7 @@ def build_application(*, polling: bool = True) -> Application:
     
     # إضافة معالجات الأوامر
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(handle_catalog_callback, pattern=r"^(doctor|facility|catalog)_"))
     
     # إضافة معالجات الرسائل
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

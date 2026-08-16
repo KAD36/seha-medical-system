@@ -5,6 +5,7 @@ Medical Leaves API Routes
 
 from flask import Blueprint, request, jsonify
 from src.models.medical_leave import MedicalLeave
+from src.identifiers import normalize_identity, normalize_service_code
 
 medical_leaves_bp = Blueprint('medical_leaves', __name__)
 medical_leave_model = MedicalLeave()
@@ -13,7 +14,9 @@ medical_leave_model = MedicalLeave()
 def create_medical_leave():
     """إنشاء إجازة مرضية جديدة"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
+        data['service_code'] = normalize_service_code(data.get('service_code'))
+        data['identity_number'] = normalize_identity(data.get('identity_number'))
         
         # التحقق من وجود البيانات المطلوبة
         required_fields = [
@@ -50,10 +53,10 @@ def create_medical_leave():
 def search_medical_leave():
     """البحث عن إجازة مرضية برمز الخدمة ورقم الهوية"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         
-        service_code = data.get('service_code', '').strip()
-        identity_number = data.get('identity_number', '').strip()
+        service_code = normalize_service_code(data.get('service_code'))
+        identity_number = normalize_identity(data.get('identity_number'))
         
         if not service_code or not identity_number:
             return jsonify({'error': 'رمز الخدمة ورقم الهوية مطلوبان'}), 400
@@ -90,7 +93,10 @@ def get_all_medical_leaves():
 def update_medical_leave(service_code):
     """تحديث إجازة مرضية موجودة"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
+        data['identity_number'] = normalize_identity(data.get('identity_number'))
+        service_code = normalize_service_code(service_code)
+        data['service_code'] = service_code
         
         # التحقق من وجود البيانات المطلوبة
         required_fields = [
@@ -121,7 +127,9 @@ def update_medical_leave(service_code):
 def delete_medical_leave(service_code):
     """حذف إجازة مرضية"""
     try:
-        success = medical_leave_model.delete_medical_leave(service_code)
+        success = medical_leave_model.delete_medical_leave(
+            normalize_service_code(service_code)
+        )
         
         if success:
             return jsonify({'message': 'تم حذف الإجازة المرضية بنجاح'}), 200
