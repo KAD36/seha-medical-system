@@ -41,7 +41,8 @@ from catalog import (
     doctor_labels_for_facility,
     facility_logo_path,
 )
-from identifiers import normalize_identity
+from identifiers import normalize_digits, normalize_identity
+from subscriptions import SubscriptionStore
 
 # إعداد التسجيل
 logging.basicConfig(
@@ -83,8 +84,10 @@ user_data = {}
 # إنشاء كائنات المعالجة
 message_parser = MessageParser()
 date_converter = DateConverter()
+subscription_store = SubscriptionStore()
 EDIT_DATES_BUTTON = "✏️ تعديل التواريخ"
 CATALOG_PAGE_SIZE = 7
+SUBSCRIPTION_CONTACT_URL = "https://t.me/enmotaz"
 
 
 def normalize_gregorian_date(value: str):
@@ -133,19 +136,93 @@ async def _show_automatic_dates(message, data: dict) -> None:
     )
 
 
-async def ensure_authorized(update: Update) -> bool:
-    """Allow only the Telegram account configured as ADMIN_USER_ID."""
-    user = update.effective_user
-    if user and ADMIN_USER_ID and str(user.id) == str(ADMIN_USER_ID):
-        return True
+def _is_admin(user_id) -> bool:
+    return bool(ADMIN_USER_ID and str(user_id) == str(ADMIN_USER_ID))
 
-    if update.effective_message:
-        await update.effective_message.reply_text("⛔ هذا البوت مخصص للمستخدم المعتمد فقط.")
+
+async def _require_private_chat(update: Update) -> bool:
+    chat = getattr(update, "effective_chat", None)
+    if chat and chat.type != "private":
+        await update.effective_message.reply_text(
+            "🔒 حفاظًا على خصوصية البيانات، استخدم البوت في المحادثة الخاصة فقط."
+        )
+        return False
+    return True
+
+
+def _format_expiry(value: datetime) -> str:
+    return value.astimezone(ZoneInfo("Asia/Riyadh")).strftime("%d-%m-%Y %I:%M %p")
+
+
+async def _send_subscription_prompt(update: Update) -> None:
+    user = update.effective_user
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("💬 التواصل مع معتز للاشتراك", url=SUBSCRIPTION_CONTACT_URL)]]
+    )
+    await update.effective_message.reply_text(
+        "👋 أهلًا بك في بوت تقارير الإجازات المرضية\n\n"
+        "استخدام البوت متاح باشتراك شهري فعّال. للتفعيل تواصل مع @enmotaz "
+        "وأرسل له معرّف حسابك الظاهر أدناه:\n\n"
+        f"🆔 معرّفك: `{user.id}`\n\n"
+        "بعد تأكيد الاشتراك اضغط /start مرة أخرى.",
+        parse_mode="Markdown",
+        reply_markup=keyboard,
+    )
+
+
+async def ensure_authorized(update: Update) -> bool:
+    """Allow the owner or a user with an active monthly subscription."""
+    user = update.effective_user
+    if not user:
+        return False
+    if not await _require_private_chat(update):
+        return False
+    if _is_admin(user.id):
+        return True
+    try:
+        if await asyncio.to_thread(subscription_store.is_active, user.id):
+            return True
+    except Exception:
+        logger.exception("Subscription lookup failed")
+        await update.effective_message.reply_text(
+            "⚠️ تعذر التحقق من الاشتراك مؤقتًا. حاول مرة أخرى بعد قليل."
+        )
+        return False
+    if update.callback_query:
+        await update.callback_query.answer("الاشتراك غير فعّال", show_alert=True)
+    await _send_subscription_prompt(update)
     return False
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """معالج أمر /start"""
+    user = update.effective_user
+    if not user:
+        return
+    if not await _require_private_chat(update):
+        return
+    try:
+        await asyncio.to_thread(
+            subscription_store.remember_user,
+            user.id,
+            user.username,
+            user.first_name,
+        )
+    except Exception:
+        logger.exception("Unable to remember Telegram user")
+    if not _is_admin(user.id):
+        try:
+            active = await asyncio.to_thread(subscription_store.is_active, user.id)
+        except Exception:
+            logger.exception("Subscription lookup failed on /start")
+            await update.effective_message.reply_text(
+                "⚠️ تعذر التحقق من الاشتراك مؤقتًا. حاول مرة أخرى بعد قليل."
+            )
+            return
+        if not active:
+            await _send_subscription_prompt(update)
+            return
+
     if not await ensure_authorized(update):
         return
 
@@ -159,7 +236,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 ✅ الاسم الإنجليزي والتخصص والشعار تلقائيًا
 ✅ التاريخ الميلادي والهجري والوقت تلقائيًا
 ✅ يمكنك تعديل التواريخ قبل الحفظ
-✅ لا يُرسل التقرير إلا بعد التحقق من ظهوره في الاستعلام"""
+✅ لا يُرسل التقرير إلا بعد التحقق من ظهوره في الاستعلام
+
+لمعرفة حالة الاشتراك: /mystatus"""
+    if _is_admin(user_id):
+        welcome_message += "\nإدارة الاشتراكات: /subscriptions"
     
     # إنشاء لوحة المفاتيح
     keyboard = [[KeyboardButton("🆕 إنشاء تقرير جديد")]]
@@ -923,6 +1004,179 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     else:
         await update.message.reply_text("🖼️ يرجى أولاً إرسال البيانات المنسقة أو استخدام الطريقة التقليدية لإنشاء التقرير.")
 
+
+async def show_my_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the numeric Telegram ID needed for manual activation."""
+    user = update.effective_user
+    if user and await _require_private_chat(update):
+        await update.effective_message.reply_text(
+            f"🆔 معرّف حسابك في تيليجرام:\n`{user.id}`",
+            parse_mode="Markdown",
+        )
+
+
+async def show_my_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Let any user inspect their own subscription without exposing others."""
+    user = update.effective_user
+    if not user:
+        return
+    if not await _require_private_chat(update):
+        return
+    record = await asyncio.to_thread(subscription_store.get, user.id)
+    if record and record['expires_at'] > datetime.now(record['expires_at'].tzinfo):
+        await update.effective_message.reply_text(
+            "✅ اشتراكك فعّال حتى:\n"
+            f"{_format_expiry(record['expires_at'])} بتوقيت الرياض"
+        )
+    else:
+        await _send_subscription_prompt(update)
+
+
+async def subscription_admin_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _require_private_chat(update):
+        return
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ هذا الأمر متاح لمدير الاشتراكات فقط.")
+        return
+    await update.effective_message.reply_text(
+        "🔐 إدارة الاشتراكات الشهرية:\n\n"
+        "/grant ID — تفعيل أو تمديد شهر واحد\n"
+        "/grant ID MONTHS — تفعيل أو تمديد من 1 إلى 12 شهرًا\n"
+        "/renew ID — تمديد شهر واحد\n"
+        "/revoke ID — إلغاء الاشتراك\n"
+        "/substatus ID — عرض حالة الاشتراك\n"
+        "/subscribers — عرض الاشتراكات الفعّالة\n\n"
+        "تبدأ المدة الجديدة من تاريخ الانتهاء الحالي إن كان الاشتراك ما زال فعّالًا."
+    )
+
+
+def _subscription_command_args(context, *, allow_months: bool = False):
+    if not context.args:
+        raise ValueError("missing user id")
+    if len(context.args) > (2 if allow_months else 1):
+        raise ValueError("too many arguments")
+    raw_target = normalize_digits(context.args[0]).strip().replace(" ", "").replace("-", "")
+    target_id = raw_target if raw_target.isdigit() else ""
+    if not target_id or len(target_id) > 20:
+        raise ValueError("invalid user id")
+    months = 1
+    if allow_months and len(context.args) > 1:
+        normalized_months = normalize_digits(context.args[1]).strip()
+        if not normalized_months:
+            raise ValueError("invalid months")
+        months = int(normalized_months)
+    if not 1 <= months <= 12:
+        raise ValueError("months out of range")
+    return target_id, months
+
+
+async def grant_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _require_private_chat(update):
+        return
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ هذا الأمر متاح لمدير الاشتراكات فقط.")
+        return
+    command = (update.effective_message.text or "").split(maxsplit=1)[0].split("@", 1)[0]
+    allow_months = command != "/renew"
+    try:
+        target_id, months = _subscription_command_args(context, allow_months=allow_months)
+    except ValueError:
+        usage = "/renew ID" if not allow_months else "/grant ID [عدد الأشهر من 1 إلى 12]"
+        await update.effective_message.reply_text(f"الاستخدام: {usage}")
+        return
+    expires_at = await asyncio.to_thread(
+        subscription_store.grant,
+        target_id,
+        months,
+        update.effective_user.id,
+    )
+    await update.effective_message.reply_text(
+        "✅ تم تفعيل/تمديد الاشتراك بنجاح.\n"
+        f"المستخدم: `{target_id}`\n"
+        f"المدة المضافة: {months} شهر\n"
+        f"ينتهي: {_format_expiry(expires_at)} بتوقيت الرياض",
+        parse_mode="Markdown",
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=int(target_id),
+            text=(
+                "✅ تم تفعيل اشتراكك في البوت.\n"
+                f"تاريخ الانتهاء: {_format_expiry(expires_at)} بتوقيت الرياض\n\n"
+                "اضغط /start لبدء الاستخدام."
+            ),
+        )
+    except Exception:
+        logger.info("Could not notify subscribed user %s", target_id)
+
+
+async def revoke_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _require_private_chat(update):
+        return
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ هذا الأمر متاح لمدير الاشتراكات فقط.")
+        return
+    try:
+        target_id, _ = _subscription_command_args(context)
+    except ValueError:
+        await update.effective_message.reply_text("الاستخدام: /revoke ID")
+        return
+    removed = await asyncio.to_thread(
+        subscription_store.revoke,
+        target_id,
+        update.effective_user.id,
+    )
+    await update.effective_message.reply_text(
+        "✅ تم إلغاء الاشتراك." if removed else "لم يُعثر على اشتراك لهذا المعرّف."
+    )
+
+
+async def show_subscription_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _require_private_chat(update):
+        return
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ هذا الأمر متاح لمدير الاشتراكات فقط.")
+        return
+    try:
+        target_id, _ = _subscription_command_args(context)
+    except ValueError:
+        await update.effective_message.reply_text("الاستخدام: /substatus ID")
+        return
+    record = await asyncio.to_thread(subscription_store.get, target_id)
+    now = datetime.now(record['expires_at'].tzinfo) if record else None
+    if record and record['expires_at'] > now:
+        state = "فعّال ✅"
+    elif record:
+        state = "منتهي ⛔"
+    else:
+        await update.effective_message.reply_text("لا يوجد سجل لهذا المعرّف.")
+        return
+    await update.effective_message.reply_text(
+        f"المستخدم: `{target_id}`\n"
+        f"الحالة: {state}\n"
+        f"الانتهاء: {_format_expiry(record['expires_at'])} بتوقيت الرياض",
+        parse_mode="Markdown",
+    )
+
+
+async def list_subscribers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await _require_private_chat(update):
+        return
+    if not _is_admin(update.effective_user.id):
+        await update.effective_message.reply_text("⛔ هذا الأمر متاح لمدير الاشتراكات فقط.")
+        return
+    records = await asyncio.to_thread(subscription_store.list_active, 50)
+    if not records:
+        await update.effective_message.reply_text("لا توجد اشتراكات فعّالة حاليًا.")
+        return
+    lines = ["📋 الاشتراكات الفعّالة:"]
+    for record in records:
+        username = f"@{record['username']}" if record.get('username') else "بدون اسم مستخدم"
+        lines.append(
+            f"• {record['telegram_user_id']} — {username} — {_format_expiry(record['expires_at'])}"
+        )
+    await update.effective_message.reply_text("\n".join(lines))
+
 def build_application(*, polling: bool = True) -> Application:
     """Build the bot application for polling or for the combined webhook server."""
     if not BOT_TOKEN:
@@ -937,6 +1191,13 @@ def build_application(*, polling: bool = True) -> Application:
     
     # إضافة معالجات الأوامر
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("id", show_my_id))
+    application.add_handler(CommandHandler("mystatus", show_my_subscription))
+    application.add_handler(CommandHandler("subscriptions", subscription_admin_help))
+    application.add_handler(CommandHandler(["grant", "renew"], grant_subscription))
+    application.add_handler(CommandHandler("revoke", revoke_subscription))
+    application.add_handler(CommandHandler("substatus", show_subscription_status))
+    application.add_handler(CommandHandler("subscribers", list_subscribers))
     application.add_handler(CallbackQueryHandler(handle_catalog_callback, pattern=r"^(doctor|facility|catalog)_"))
     
     # إضافة معالجات الرسائل

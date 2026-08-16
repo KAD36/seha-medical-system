@@ -12,7 +12,7 @@ from pathlib import Path
 import uvicorn
 from asgiref.wsgi import WsgiToAsgi
 from flask import Response, abort, request
-from telegram import Update
+from telegram import BotCommand, BotCommandScopeChat, Update
 
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -71,6 +71,24 @@ async def main() -> None:
             url=f"{external_url.rstrip('/')}/telegram-webhook",
             allowed_updates=Update.ALL_TYPES,
             secret_token=webhook_secret,
+        )
+        public_commands = [
+            BotCommand("start", "بدء استخدام البوت"),
+            BotCommand("id", "عرض معرّف حسابك"),
+            BotCommand("mystatus", "حالة اشتراكك"),
+        ]
+        await telegram_application.bot.set_my_commands(public_commands)
+        await telegram_application.bot.set_my_commands(
+            public_commands
+            + [
+                BotCommand("subscriptions", "تعليمات إدارة الاشتراكات"),
+                BotCommand("grant", "تفعيل أو تمديد اشتراك"),
+                BotCommand("renew", "تمديد اشتراك شهرًا"),
+                BotCommand("revoke", "إلغاء اشتراك"),
+                BotCommand("substatus", "حالة اشتراك مستخدم"),
+                BotCommand("subscribers", "الاشتراكات الفعالة"),
+            ],
+            scope=BotCommandScopeChat(chat_id=int(ADMIN_USER_ID)),
         )
         await telegram_application.start()
         await server.serve()
